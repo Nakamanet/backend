@@ -1,0 +1,102 @@
+name: Discord Notification
+
+on:
+  push:
+
+permissions:
+  contents: read
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send push details to Discord
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_BACK_HOOK }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${DISCORD_WEBHOOK:-}" ]]; then
+            echo "Missing secret DISCORD_BACK_HOOK (mapped to DISCORD_WEBHOOK)."
+            exit 1
+          fi
+
+          EVENT_JSON="$GITHUB_EVENT_PATH"
+
+          REPO_FULL_NAME="$(jq -r '.repository.full_name // ""' "$EVENT_JSON")"
+          REPO_URL="$(jq -r '.repository.html_url // ""' "$EVENT_JSON")"
+          BRANCH="${GITHUB_REF_NAME}"
+          SENDER_LOGIN="$(jq -r '.sender.login // .pusher.name // "unknown"' "$EVENT_JSON")"
+
+          COMMIT_COUNT="$(jq -r '.commits | length' "$EVENT_JSON")"
+          COMPARE_URL="$(jq -r '.compare // ""' "$EVENT_JSON")"
+          AFTER_SHA="$(jq -r '.after // ""' "$EVENT_JSON")"
+
+          if [[ -n "$COMPARE_URL" && "$COMPARE_URL" != "null" ]]; then
+            MAIN_URL="$COMPARE_URL"
+          else
+            MAIN_URL="${REPO_URL}/commit/${AFTER_SHA}"
+          fi
+
+          HEAD_MSG="$(jq -r '.head_commit.message // ""' "$EVENT_JSON" | head -n 1)"
+          [[ -z "$HEAD_MSG" || "$HEAD_MSG" == "null" ]] && HEAD_MSG="(no commit message found)"
+
+          COMMITS_MD="$(jq -r --arg repo_url "$REPO_URL" '
+            (.commits // [])[0:5]
+            | map(
+                "- [`" + (.id[0:7]) + "`](" + ($repo_url + "/commit/" + .id) + ") "
+                + ((.message // "") | split("\n")[0])
+                + " — " + (.author.name // "unknown")
+              )
+            | join("\n")
+          ' "$EVENT_JSON")"
+
+          if [[ -z "$COMMITS_MD" ]]; then
+            COMMITS_MD="(no commits listed in payload)"
+          fi
+
+          NOW_UTC="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+
+          PAYLOAD="$(jq -n \
+            --arg username "GitHub" \
+            --arg repo "$REPO_FULL_NAME" \
+            --arg repo_url "$REPO_URL" \
+            --arg branch "$BRANCH" \
+            --arg sender "$SENDER_LOGIN" \
+            --arg head_msg "$HEAD_MSG" \
+            --arg commits_md "$COMMITS_MD" \
+            --arg main_url "$MAIN_URL" \
+            --arg commit_count "$COMMIT_COUNT" \
+            --arg timestamp "$NOW_UTC" \
+            '{
+              username: $username,
+              embeds: [
+                {
+                  title: ($repo + " • " + $branch),
+                  url: $main_url,
+                  description: ("**" + $head_msg + "**\n\n" + $commits_md),
+                  fields: [
+                    { name: "Repository", value: ("[" + $repo + "](" + $repo_url + ")"), inline: true },
+                    { name: "Branch", value: $branch, inline: true },
+                    { name: "Pushed by", value: $sender, inline: true },
+                    { name: "Commits", value: $commit_count, inline: true }
+                  ],
+                  timestamp: $timestamp
+                }
+              ]
+            }'
+          )"
+
+          HTTP_CODE="$(curl -sS -o /tmp/discord_resp.json -w "%{http_code}" \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$DISCORD_WEBHOOK" || true)"
+
+          if [[ "$HTTP_CODE" -ge 400 ]]; then
+            echo "Discord webhook failed with HTTP $HTTP_CODE"
+            cat /tmp/discord_resp.json || true
+            exit 1
+          fi
+
+          echo "Discord notified successfully (HTTP $HTTP_CODE)."
