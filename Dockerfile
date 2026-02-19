@@ -11,6 +11,23 @@ COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www/html
 
+COPY composer.json composer.lock ./
+RUN composer install --no-scripts --no-autoloader --no-interaction
+
+COPY . .
+
+RUN composer dump-autoload --optimize
+
 # Optional: speed up local dev permissions
 RUN addgroup -g 1000 www && adduser -G www -g www -s /bin/sh -D -u 1000 www
+RUN chown -R www:www /var/www/html
 USER www
+
+USER root
+COPY entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+RUN chmod +x /usr/local/bin/docker-entrypoint.sh
+USER www
+
+ENTRYPOINT [ "docker-entrypoint.sh" ]
+
+CMD ["php-fpm"]
