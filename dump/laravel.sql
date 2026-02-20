@@ -30,8 +30,6 @@ CREATE TABLE "Users" (
   "avatar_url" varchar(255),
   "banner_url" varchar(255),
   "role" user_role DEFAULT 'user',
-  "theme_preference" varchar(20) DEFAULT 'light',
-  "created_at" timestamp DEFAULT (now()),
   "is_deleted" boolean DEFAULT false,
   "is_admin" boolean DEFAULT false,
   "is_moderator" boolean DEFAULT false
