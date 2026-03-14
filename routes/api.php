@@ -2,7 +2,7 @@
 
 
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Auth\UserController;
+use App\Http\Controllers\User\UserController;
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
