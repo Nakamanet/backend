@@ -41,9 +41,8 @@ services:
     ports:
       - "5433:5432"
     volumes:
-      - pgdata:/var/lib/postgresql/data
-      - ./dump:/dump:ro
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
+        - pgdata:/var/lib/postgresql/data
+        - ./dump/laravel.sql:/docker-entrypoint-initdb.d/10-restore.sql:ro
 
 volumes:
   pgdata:
