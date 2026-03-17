@@ -34,6 +34,7 @@ CREATE TABLE "Users" (
   "is_admin" boolean DEFAULT false,
   "is_moderator" boolean DEFAULT false,
   "updated_at" timestamp DEFAULT (now()),
+  "created_at" timestamp DEFAULT (now())
  );
 
 CREATE TABLE "User_Anime_Library" (
@@ -45,6 +46,7 @@ CREATE TABLE "User_Anime_Library" (
   "score" int,
   "is_private" boolean DEFAULT false,
   "updated_at" timestamp DEFAULT (now()),
+  "created_at" timestamp DEFAULT (now()),
   PRIMARY KEY ("user_id", "anime_id")
 );
 
@@ -57,6 +59,7 @@ CREATE TABLE "User_Manga_Library" (
   "score" int,
   "is_private" boolean DEFAULT false,
   "updated_at" timestamp DEFAULT (now()),
+  "created_at" timestamp DEFAULT (now()),
   PRIMARY KEY ("user_id", "manga_id")
 );
 
@@ -76,7 +79,8 @@ CREATE TABLE "Posts" (
   "content" text NOT NULL,
   "image_urls" text[],
   "is_spoiler" boolean DEFAULT false,
-  "created_at" timestamp DEFAULT (now())
+  "created_at" timestamp DEFAULT (now()),
+  "updated_at" timestamp DEFAULT (now())
 );
 
 CREATE TABLE "Comments" (
@@ -92,8 +96,8 @@ CREATE TABLE "Comments" (
 
 CREATE TABLE "Likes" (
   "user_id" int,
-  "post_id" int,
-  "comment_id" int,
+  "post_id" int NULL,
+  "comment_id" int NULL,
   "created_at" timestamp DEFAULT (now()),
   PRIMARY KEY ("user_id", "post_id", "comment_id")
 );
