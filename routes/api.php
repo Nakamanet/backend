@@ -6,13 +6,11 @@ use App\Http\Controllers\User\UserController;
 
 use App\Http\Controllers\Post\PostController;
 
-const POST_WITH_ID = '/posts/{id}';
-
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
     Route::get('/posts', [PostController::class, 'index']);
-    Route::get(POST_WITH_ID, [PostController::class, 'show']);
+    Route::get('/posts/{id}', [PostController::class, 'show']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
@@ -20,8 +18,8 @@ Route::prefix('auth')->group(function () {
         Route::patch('/profile', [UserController::class, 'updateProfile']);
 
         Route::post('/posts', [PostController::class, 'store']);
-        Route::patch(POST_WITH_ID, [PostController::class, 'update']);
-        Route::delete(POST_WITH_ID, [PostController::class, 'destroy']);
+        Route::patch('/posts/{id}', [PostController::class, 'update']);
+        Route::delete('/posts/{id}', [PostController::class, 'destroy']);
     });
 });
 
