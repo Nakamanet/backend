@@ -32,7 +32,8 @@ CREATE TABLE "Users" (
   "role" user_role DEFAULT 'user',
   "is_deleted" boolean DEFAULT false,
   "is_admin" boolean DEFAULT false,
-  "is_moderator" boolean DEFAULT false
+  "is_moderator" boolean DEFAULT false,
+  "updated_at" timestamp DEFAULT (now()),
  );
 
 CREATE TABLE "User_Anime_Library" (
