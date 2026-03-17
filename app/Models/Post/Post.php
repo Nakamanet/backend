@@ -3,6 +3,8 @@
 namespace App\Models\Post;
 
 use App\Models\User;
+use App\Models\Like\Like;
+use App\Models\Comment\Comment;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
