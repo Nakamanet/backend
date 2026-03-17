@@ -2,11 +2,9 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-
 use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
@@ -29,10 +27,34 @@ class User extends Authenticatable
         'avatar_url',
         'banner_url',
         'role',
-        'theme_preference',
+        'is_deleted',
+        'is_admin',
+        'is_moderator',
     ];
 
     protected $hidden = [
         'password_hash',
     ];
+
+    protected $casts = [
+        'birthdate'    => 'date',
+        'is_deleted'   => 'boolean',
+        'is_admin'     => 'boolean',
+        'is_moderator' => 'boolean',
+    ];
+
+    public function posts()
+    {
+        return $this->hasMany(Post::class, 'user_id');
+    }
+
+    public function animeLibrary()
+    {
+        return $this->hasMany(UserAnimeLibrary::class, 'user_id');
+    }
+
+    public function mangaLibrary()
+    {
+        return $this->hasMany(UserMangaLibrary::class, 'user_id');
+    }
 }
