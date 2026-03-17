@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\User;
 
+use App\Models\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -35,5 +36,18 @@ class UserController extends Controller
             'message' => 'Profile updated successfully',
             'user' => $user->fresh()
         ]);
+    }
+
+    public function disableAccount(Request $request, $id)
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $user->update(['is_deleted' => true]);
+
+        return response()->json(['message' => 'Account disabled', 'status' => 200]);
     }
 }

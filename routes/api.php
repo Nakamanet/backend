@@ -16,6 +16,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::patch('/profile', [UserController::class, 'updateProfile']);
+        Route::put('/disable/{id}',[UserController::class, 'disableAccount']);
 
         Route::post('/posts', [PostController::class, 'store']);
         Route::patch('/posts/{id}', [PostController::class, 'update']);
