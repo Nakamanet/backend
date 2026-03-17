@@ -5,6 +5,8 @@ use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
 
 use App\Http\Controllers\Post\PostController;
+use App\Http\Controllers\Like\LikeController;
+
 
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -12,7 +14,11 @@ Route::prefix('auth')->group(function () {
     Route::get('/posts', [PostController::class, 'index']);
     Route::get('/posts/{id}', [PostController::class, 'show']);
 
+    
+    
     Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/likes/toggle', [LikeController::class, 'toggle']);
+
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
         Route::patch('/profile', [UserController::class, 'updateProfile']);
