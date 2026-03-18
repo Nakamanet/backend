@@ -9,6 +9,8 @@ use App\Http\Controllers\Forum\ForumController;
 
 use App\Http\Controllers\Friendship\FriendshipController;
 
+use App\Http\Controllers\Library\LibraryController;
+
 // Auth
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
@@ -64,3 +66,16 @@ Route::middleware('auth:sanctum')->prefix('friends')->group(function () {
     Route::delete('/{id}/decline', [FriendshipController::class, 'decline']);
     Route::patch('/{id}/block', [FriendshipController::class, 'block']);
 });
+
+
+
+Route::middleware('auth:sanctum')->prefix('library')->group(function () {
+    Route::get('/anime', [LibraryController::class, 'animeIndex']);
+    Route::post('/anime', [LibraryController::class, 'animeStore']);
+    Route::delete('/anime/{anime_id}', [LibraryController::class, 'animeDestroy']);
+
+    Route::get('/manga', [LibraryController::class, 'mangaIndex']);
+    Route::post('/manga', [LibraryController::class, 'mangaStore']);
+    Route::delete('/manga/{manga_id}', [LibraryController::class, 'mangaDestroy']);
+});
+
