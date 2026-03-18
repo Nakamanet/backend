@@ -87,6 +87,7 @@ CREATE TABLE "Likes" (
   "user_id" int,
   "post_id" int NULL,
   "comment_id" int NULL,
+  "is_liked" boolean DEFAULT false,
   PRIMARY KEY ("user_id", "post_id", "comment_id")
 );
 
