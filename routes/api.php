@@ -2,9 +2,12 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
+
 use App\Http\Controllers\Post\PostController;
 use App\Http\Controllers\Like\LikeController;
 use App\Http\Controllers\Forum\ForumController;
+
+use App\Http\Controllers\Friendship\FriendshipController;
 
 // Auth
 Route::prefix('auth')->group(function () {
@@ -50,4 +53,14 @@ Route::prefix('forum')->group(function () {
         Route::delete('/topics/{id}', [ForumController::class, 'destroy']);
         Route::post('/topics/{id}/reply', [ForumController::class, 'reply']);
     });
+});
+
+
+Route::middleware('auth:sanctum')->prefix('friends')->group(function () {
+    Route::get('/', [FriendshipController::class, 'index']);
+    Route::get('/pending', [FriendshipController::class, 'pending']);
+    Route::post('/send', [FriendshipController::class, 'send']);
+    Route::patch('/{id}/accept', [FriendshipController::class, 'accept']);
+    Route::delete('/{id}/decline', [FriendshipController::class, 'decline']);
+    Route::patch('/{id}/block', [FriendshipController::class, 'block']);
 });
