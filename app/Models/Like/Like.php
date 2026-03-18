@@ -13,7 +13,6 @@ class Like extends Model
     use HasFactory;
 
     protected $table = 'Likes';
-    public $timestamps = false;
     public $incrementing = false;
 
     protected $fillable = [

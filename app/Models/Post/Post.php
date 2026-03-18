@@ -13,7 +13,6 @@ class Post extends Model
     use HasFactory;
 
     protected $table = 'Posts';
-    public $timestamps = false;
 
     protected $fillable = [
         'user_id',
@@ -43,5 +42,11 @@ class Post extends Model
     public function likes()
     {
         return $this->hasMany(Like::class, 'post_id');
+    }
+
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\PostFactory::new();
     }
 }

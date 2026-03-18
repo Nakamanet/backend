@@ -11,10 +11,6 @@ class ForumTopic extends Model
     use HasFactory;
 
     protected $table = 'Forum_Topics';
-    public $timestamps = true;
-
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'user_id',
@@ -42,5 +38,11 @@ class ForumTopic extends Model
     public function replies()
     {
         return $this->hasMany(ForumReply::class, 'topic_id');
+    }
+
+
+    protected static function newFactory()
+    {
+        return \Database\Factories\ForumTopicFactory::new();
     }
 }

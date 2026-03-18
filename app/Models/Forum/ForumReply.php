@@ -11,11 +11,7 @@ class ForumReply extends Model
     use HasFactory;
 
     protected $table = 'Forum_Replies';
-    public $timestamps = true;
-
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = 'updated_at';
-
+    
     protected $fillable = [
         'topic_id',
         'user_id',

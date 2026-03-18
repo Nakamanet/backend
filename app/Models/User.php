@@ -7,15 +7,13 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
+use Database\Factories\UserFactory;
+
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable;
 
     protected $table = 'Users';
-    public $timestamps = true;
-
-    const CREATED_AT = 'created_at';
-    const UPDATED_AT = 'updated_at';
 
     protected $fillable = [
         'username',
@@ -56,5 +54,11 @@ class User extends Authenticatable
     public function mangaLibrary()
     {
         return $this->hasMany(UserMangaLibrary::class, 'user_id');
+    }
+
+
+    protected static function newFactory(): UserFactory
+    {
+        return UserFactory::new();
     }
 }
