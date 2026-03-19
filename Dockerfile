@@ -21,10 +21,12 @@ RUN composer dump-autoload --optimize
 RUN addgroup -g 1000 www && adduser -G www -g www -s /bin/sh -D -u 1000 www
 RUN chown -R www:www /var/www/html
 
+# Already correct in your Dockerfile — but the volume is the problem
 COPY entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
 USER www
+
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["php-fpm"]
