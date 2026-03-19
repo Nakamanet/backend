@@ -26,12 +26,16 @@ Route::prefix('auth')->group(function () {
 Route::middleware('auth:sanctum')->prefix('users')->group(function () {
     Route::patch('/profile', [UserController::class, 'updateProfile']);
     Route::put('/disable/{id}', [UserController::class, 'disableAccount']);
+
+    Route::get('/users/{id}/posts', [PostController::class, 'userPosts']);
+    Route::get('/users/{id}/forum-topics', [ForumController::class, 'userTopics']);
 });
 
 // Posts
 Route::prefix('posts')->group(function () {
     Route::get('/', [PostController::class, 'index']);
     Route::get('/{id}', [PostController::class, 'show']);
+    Route::get('/{id}/comments', [PostController::class, 'comments']);
 
     Route::middleware('auth:sanctum')->group(function () {
         Route::post('/', [PostController::class, 'store']);
@@ -78,4 +82,7 @@ Route::middleware('auth:sanctum')->prefix('library')->group(function () {
     Route::post('/manga', [LibraryController::class, 'mangaStore']);
     Route::delete('/manga/{manga_id}', [LibraryController::class, 'mangaDestroy']);
 });
+
+
+
 

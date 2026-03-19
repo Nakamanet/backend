@@ -8,9 +8,31 @@ use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
-        $posts = Post::with('user')->latest('created_at')->paginate(20);
+        $query = Post::withCount(['likes', 'comments'])
+            ->with('user')
+            ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
+            ->when($request->anime_id, fn($q) => $q->where('related_anime_id', $request->anime_id))
+            ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
+            ->when($request->has('is_spoiler'), fn($q) => $q->where('is_spoiler', filter_var($request->is_spoiler, FILTER_VALIDATE_BOOLEAN)))
+            ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
+
+        match($request->sort) {
+            'oldest'        => $query->oldest('created_at'),
+            'most_liked'    => $query->orderByDesc('likes_count'),
+            'most_commented'=> $query->orderByDesc('comments_count'),
+            default         => $query->latest('created_at'),
+        };
+
+        // is_liked for authenticated user
+        if ($request->user()) {
+            $userId = $request->user()->id;
+            $query->with(['likes' => fn($q) => $q->where('user_id', $userId)]);
+        }
+
+        $posts = $query->paginate(20);
+
         return response()->json($posts);
     }
 
@@ -69,5 +91,23 @@ class PostController extends Controller
         $post->delete();
 
         return response()->json(['message' => 'Post deleted']);
+    }
+
+    public function comments($id)
+    {
+        $post = Post::findOrFail($id);
+        $comments = $post->comments()->with('user')->paginate(20);
+        return response()->json($comments);
+    }
+
+    public function userPosts($id)
+    {
+        $posts = Post::withCount(['likes', 'comments'])
+            ->with('user')
+            ->where('user_id', $id)
+            ->latest('created_at')
+            ->paginate(20);
+
+        return response()->json($posts);
     }
 }

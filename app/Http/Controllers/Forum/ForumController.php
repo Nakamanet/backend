@@ -9,16 +9,24 @@ use Illuminate\Http\Request;
 
 class ForumController extends Controller
 {
-    // list topics, optionally filter by category
     public function index(Request $request)
     {
-        $topics = ForumTopic::with('user')
+        $topics = ForumTopic::withCount('replies')
+            ->with('user')
             ->when($request->category, fn($q) => $q->where('category', $request->category))
-            ->orderByDesc('is_pinned')
-            ->latest('created_at')
-            ->paginate(20);
+            ->when($request->user_id, fn($q) => $q->where('user_id', $request->user_id))
+            ->when($request->anime_id, fn($q) => $q->where('related_anime_id', $request->anime_id))
+            ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
+            ->when($request->has('is_pinned'), fn($q) => $q->where('is_pinned', filter_var($request->is_pinned, FILTER_VALIDATE_BOOLEAN)))
+            ->when($request->has('is_locked'), fn($q) => $q->where('is_locked', filter_var($request->is_locked, FILTER_VALIDATE_BOOLEAN)));
 
-        return response()->json($topics);
+        match($request->sort) {
+            'oldest'       => $topics->oldest('created_at'),
+            'most_replied' => $topics->orderByDesc('replies_count'),
+            default        => $topics->orderByDesc('is_pinned')->latest('created_at'),
+        };
+
+        return response()->json($topics->paginate(20));
     }
 
     // single topic with its replies
@@ -78,5 +86,15 @@ class ForumController extends Controller
         ]);
 
         return response()->json($reply, 201);
+    }
+    public function userTopics($id)
+    {
+        $topics = ForumTopic::withCount('replies')
+            ->with('user')
+            ->where('user_id', $id)
+            ->latest('created_at')
+            ->paginate(20);
+
+        return response()->json($topics);
     }
 }
