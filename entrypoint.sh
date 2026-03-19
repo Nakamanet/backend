@@ -8,6 +8,7 @@ until php -r "new PDO('pgsql:host=${DB_HOST};port=${DB_PORT};dbname=${DB_DATABAS
   sleep 2
 done
 echo "Database is ready."
+php artisan config:clear
 
 if [ ! -d "vendor" ]; then
     composer install --no-interaction --optimize-autoloader

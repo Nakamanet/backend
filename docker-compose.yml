@@ -8,43 +8,37 @@ services:
     volumes:
       - ./:/var/www/html
       - /var/www/html/vendor
-    environment:
-      APP_ENV: local
-      APP_DEBUG: "true"
-      DB_CONNECTION: pgsql
-      DB_HOST: db
-      DB_PORT: 5432
-      DB_DATABASE: laravel
-      DB_USERNAME: laravel
-      DB_PASSWORD: secret
+    env_file:
+      - .env 
     depends_on:
       db:
         condition: service_healthy
-        
+
   nginx:
     image: nginx:alpine
     container_name: laravel_nginx
     ports:
-      - "8080:80"
+      - "${NGINX_PORT:-8080}:80"
     volumes:
       - ./:/var/www/html
       - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
-        - app
+      - app
+
   db:
     image: postgres:16-alpine
     container_name: laravel_db
     environment:
-      POSTGRES_DB: laravel
-      POSTGRES_USER: laravel
-      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5433:5432"
+      - "${DB_EXTERNAL_PORT:-5433}:${DB_PORT:-5432}"
     volumes:
       - pgdata:/var/lib/postgresql/data
       - ./dump/laravel.sql:/docker-entrypoint-initdb.d/10-restore.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U laravel -d laravel"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
       interval: 5s
       timeout: 5s
       retries: 10
