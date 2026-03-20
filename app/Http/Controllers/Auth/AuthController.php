@@ -28,11 +28,12 @@ class AuthController extends Controller
             'role' => 'user',
         ]);
 
-        $token = $user->createToken('api_token')->plainTextToken;
-
+        $token = auth('api')->login($user);
         return response()->json([
             'user' => $user,
-            'token' => $token
+            'token' => $token,
+            'token_type'=> 'Bearer',
+            'expires_in'=> auth('api')->factory()->getTTL() * 60,
         ], 201);
     }
 
