@@ -2,13 +2,10 @@
 
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\User\UserController;
-
 use App\Http\Controllers\Post\PostController;
 use App\Http\Controllers\Like\LikeController;
 use App\Http\Controllers\Forum\ForumController;
-
 use App\Http\Controllers\Friendship\FriendshipController;
-
 use App\Http\Controllers\Library\LibraryController;
 
 // Auth
@@ -16,14 +13,15 @@ Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
     Route::post('/login', [AuthController::class, 'login']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:api')->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
+        Route::post('/refresh', [AuthController::class, 'refresh']);
         Route::get('/me', [AuthController::class, 'me']);
     });
 });
 
 // Users
-Route::middleware('auth:sanctum')->prefix('users')->group(function () {
+Route::middleware('auth:api')->prefix('users')->group(function () {
     Route::patch('/profile', [UserController::class, 'updateProfile']);
     Route::put('/disable/{id}', [UserController::class, 'disableAccount']);
 
@@ -37,7 +35,7 @@ Route::prefix('posts')->group(function () {
     Route::get('/{id}', [PostController::class, 'show']);
     Route::get('/{id}/comments', [PostController::class, 'comments']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:api')->group(function () {
         Route::post('/', [PostController::class, 'store']);
         Route::patch('/{id}', [PostController::class, 'update']);
         Route::delete('/{id}', [PostController::class, 'destroy']);
@@ -45,7 +43,7 @@ Route::prefix('posts')->group(function () {
 });
 
 // Likes
-Route::middleware('auth:sanctum')->prefix('likes')->group(function () {
+Route::middleware('auth:api')->prefix('likes')->group(function () {
     Route::post('/toggle', [LikeController::class, 'toggle']);
 });
 
@@ -54,15 +52,15 @@ Route::prefix('forum')->group(function () {
     Route::get('/topics', [ForumController::class, 'index']);
     Route::get('/topics/{id}', [ForumController::class, 'show']);
 
-    Route::middleware('auth:sanctum')->group(function () {
+    Route::middleware('auth:api')->group(function () {
         Route::post('/topics', [ForumController::class, 'store']);
         Route::delete('/topics/{id}', [ForumController::class, 'destroy']);
         Route::post('/topics/{id}/reply', [ForumController::class, 'reply']);
     });
 });
 
-
-Route::middleware('auth:sanctum')->prefix('friends')->group(function () {
+// Friendships
+Route::middleware('auth:api')->prefix('friends')->group(function () {
     Route::get('/', [FriendshipController::class, 'index']);
     Route::get('/pending', [FriendshipController::class, 'pending']);
     Route::post('/send', [FriendshipController::class, 'send']);
@@ -71,9 +69,8 @@ Route::middleware('auth:sanctum')->prefix('friends')->group(function () {
     Route::patch('/{id}/block', [FriendshipController::class, 'block']);
 });
 
-
-
-Route::middleware('auth:sanctum')->prefix('library')->group(function () {
+// Library
+Route::middleware('auth:api')->prefix('library')->group(function () {
     Route::get('/anime', [LibraryController::class, 'animeIndex']);
     Route::post('/anime', [LibraryController::class, 'animeStore']);
     Route::delete('/anime/{anime_id}', [LibraryController::class, 'animeDestroy']);
@@ -82,7 +79,3 @@ Route::middleware('auth:sanctum')->prefix('library')->group(function () {
     Route::post('/manga', [LibraryController::class, 'mangaStore']);
     Route::delete('/manga/{manga_id}', [LibraryController::class, 'mangaDestroy']);
 });
-
-
-
-
