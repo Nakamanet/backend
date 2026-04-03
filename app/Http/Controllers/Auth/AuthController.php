@@ -8,20 +8,14 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Controller;
 
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\LoginRequest;
+
 class AuthController extends Controller
 {
-    /**
-     * Register a new user and return a JWT token.
-     */
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $request->validate([
-            'username'  => 'required|string|max:50|unique:Users,username',
-            'email'     => 'required|email|max:100|unique:Users,email',
-            'password'  => 'required|string|min:8',
-            'birthdate' => 'required|date',
-        ]);
-
+        // $request->validated() gives only the validated fields
         $user = User::create([
             'username'      => $request->username,
             'email'         => $request->email,
@@ -36,16 +30,8 @@ class AuthController extends Controller
         return $this->respondWithToken($token, $user, 201);
     }
 
-    /**
-     * Login and return a JWT token.
-     */
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email'    => 'required|email',
-            'password' => 'required',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password_hash)) {
@@ -54,7 +40,6 @@ class AuthController extends Controller
             ]);
         }
 
-        // Manually log in via JWT (needed because password field is non-standard)
         $token = auth('api')->login($user);
 
         return $this->respondWithToken($token, $user);

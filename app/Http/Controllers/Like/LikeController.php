@@ -3,26 +3,17 @@
 namespace App\Http\Controllers\Like;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Like\ToggleLikeRequest;
 use App\Models\Like\Like;
-use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 
 class LikeController extends Controller
 {
-    public function toggle(Request $request)
+    public function toggle(ToggleLikeRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'post_id'    => 'nullable|integer|exists:Posts,id',
-            'comment_id' => 'nullable|integer|exists:Comments,id',
-        ]);
-
-        // must have at least one
-        if (empty($validated['post_id']) && empty($validated['comment_id'])) {
-            return response()->json(['message' => 'post_id or comment_id is required'], 422);
-        }
-
         $userId    = $request->user()->id;
-        $postId    = $validated['post_id'] ?? null;
-        $commentId = $validated['comment_id'] ?? null;
+        $postId    = $request->post_id ?? null;
+        $commentId = $request->comment_id ?? null;
 
         $existing = Like::where('user_id', $userId)
             ->where('post_id', $postId)
@@ -31,6 +22,7 @@ class LikeController extends Controller
 
         if ($existing) {
             $existing->delete();
+
             return response()->json(['message' => 'Unliked', 'liked' => false]);
         }
 
@@ -39,7 +31,6 @@ class LikeController extends Controller
             'post_id'    => $postId,
             'comment_id' => $commentId,
             'is_liked'   => true,
-
         ]);
 
         return response()->json(['message' => 'Liked', 'liked' => true], 201);

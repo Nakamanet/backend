@@ -3,19 +3,16 @@
 namespace App\Http\Controllers\Friendship;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Friendship\SendFriendRequest;
 use App\Models\Friendship\Friendship;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class FriendshipController extends Controller
 {
-    // send a friend request
-    public function send(Request $request)
+    public function send(SendFriendRequest $request): JsonResponse
     {
-        $request->validate([
-            'addressee_id' => 'required|integer|exists:Users,id',
-        ]);
-
-        $userId     = $request->user()->id;
+        $userId      = $request->user()->id;
         $addresseeId = $request->addressee_id;
 
         if ($userId === $addresseeId) {
@@ -39,8 +36,7 @@ class FriendshipController extends Controller
         return response()->json($friendship, 201);
     }
 
-    // accept a friend request
-    public function accept(Request $request, $id)
+    public function accept(Request $request, int $id): JsonResponse
     {
         $friendship = Friendship::where('id', $id)
             ->where('addressee_id', $request->user()->id)
@@ -52,16 +48,12 @@ class FriendshipController extends Controller
         return response()->json(['message' => 'Friend request accepted']);
     }
 
-    // decline or cancel a friend request
-    public function decline(Request $request, $id)
+    public function decline(Request $request, int $id): JsonResponse
     {
         $userId = $request->user()->id;
 
         $friendship = Friendship::where('id', $id)
-            ->where(function ($q) use ($userId) {
-                $q->where('requester_id', $userId)
-                  ->orWhere('addressee_id', $userId);
-            })
+            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
             ->firstOrFail();
 
         $friendship->delete();
@@ -69,14 +61,12 @@ class FriendshipController extends Controller
         return response()->json(['message' => 'Friend request declined']);
     }
 
-    // block a user
-    public function block(Request $request, $id)
+    public function block(Request $request, int $id): JsonResponse
     {
+        $userId = $request->user()->id;
+
         $friendship = Friendship::where('id', $id)
-            ->where(function ($q) use ($request) {
-                $q->where('requester_id', $request->user()->id)
-                  ->orWhere('addressee_id', $request->user()->id);
-            })
+            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
             ->firstOrFail();
 
         $friendship->update(['status' => 'blocked']);
@@ -84,24 +74,19 @@ class FriendshipController extends Controller
         return response()->json(['message' => 'User blocked']);
     }
 
-    // list my friends
-    public function index(Request $request)
+    public function index(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
 
         $friends = Friendship::with(['requester', 'addressee'])
             ->where('status', 'accepted')
-            ->where(function ($q) use ($userId) {
-                $q->where('requester_id', $userId)
-                  ->orWhere('addressee_id', $userId);
-            })
+            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
             ->get();
 
         return response()->json($friends);
     }
 
-    // list pending requests received
-    public function pending(Request $request)
+    public function pending(Request $request): JsonResponse
     {
         $pending = Friendship::with('requester')
             ->where('addressee_id', $request->user()->id)
