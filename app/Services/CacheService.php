@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 class CacheService
 {
@@ -13,6 +14,8 @@ class CacheService
 
     public static function remember(string $key, int $ttl, callable $callback): mixed
     {
+        $hit = Cache::has($key);
+        Log::info('[Cache] ' . ($hit ? 'HIT' : 'MISS') . ' → ' . $key);
         return Cache::remember($key, $ttl, $callback);
     }
 

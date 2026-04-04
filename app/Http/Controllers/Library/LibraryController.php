@@ -7,6 +7,7 @@ use App\Http\Requests\Library\AnimeLibraryRequest;
 use App\Http\Requests\Library\MangaLibraryRequest;
 use App\Models\Library\UserAnimeLibrary;
 use App\Models\Library\UserMangaLibrary;
+use App\Services\CacheService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -14,9 +15,15 @@ class LibraryController extends Controller
 {
     public function animeIndex(Request $request): JsonResponse
     {
-        $library = UserAnimeLibrary::where('user_id', $request->user()->id)
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->get();
+        $userId = $request->user()->id;
+
+        $library = CacheService::remember(
+            CacheService::animeLibrary($userId),
+            CacheService::TTL_LONG,
+            fn() => UserAnimeLibrary::where('user_id', $userId)
+                ->when($request->status, fn($q) => $q->where('status', $request->status))
+                ->get()
+        );
 
         return response()->json($library);
     }
@@ -24,11 +31,14 @@ class LibraryController extends Controller
     public function animeStore(AnimeLibraryRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $entry = UserAnimeLibrary::updateOrCreate(
-            ['user_id' => $request->user()->id, 'anime_id' => $validated['anime_id']],
-            $validated + ['user_id' => $request->user()->id]
+            ['user_id' => $userId, 'anime_id' => $validated['anime_id']],
+            $validated + ['user_id' => $userId]
         );
+
+        CacheService::forget(CacheService::animeLibrary($userId));
 
         return response()->json($entry, 201);
     }
@@ -40,14 +50,22 @@ class LibraryController extends Controller
             ->firstOrFail()
             ->delete();
 
+        CacheService::forget(CacheService::animeLibrary($request->user()->id));
+
         return response()->json(['message' => 'Removed from library']);
     }
 
     public function mangaIndex(Request $request): JsonResponse
     {
-        $library = UserMangaLibrary::where('user_id', $request->user()->id)
-            ->when($request->status, fn($q) => $q->where('status', $request->status))
-            ->get();
+        $userId = $request->user()->id;
+
+        $library = CacheService::remember(
+            CacheService::mangaLibrary($userId),
+            CacheService::TTL_LONG,
+            fn() => UserMangaLibrary::where('user_id', $userId)
+                ->when($request->status, fn($q) => $q->where('status', $request->status))
+                ->get()
+        );
 
         return response()->json($library);
     }
@@ -55,11 +73,14 @@ class LibraryController extends Controller
     public function mangaStore(MangaLibraryRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $userId    = $request->user()->id;
 
         $entry = UserMangaLibrary::updateOrCreate(
-            ['user_id' => $request->user()->id, 'manga_id' => $validated['manga_id']],
-            $validated + ['user_id' => $request->user()->id]
+            ['user_id' => $userId, 'manga_id' => $validated['manga_id']],
+            $validated + ['user_id' => $userId]
         );
+
+        CacheService::forget(CacheService::mangaLibrary($userId));
 
         return response()->json($entry, 201);
     }
@@ -70,6 +91,8 @@ class LibraryController extends Controller
             ->where('manga_id', $mangaId)
             ->firstOrFail()
             ->delete();
+
+        CacheService::forget(CacheService::mangaLibrary($request->user()->id));
 
         return response()->json(['message' => 'Removed from library']);
     }
