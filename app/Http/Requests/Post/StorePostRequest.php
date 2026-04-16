@@ -16,7 +16,7 @@ class StorePostRequest extends FormRequest
         return [
             'content'           => 'required|string|max:5000',
             'is_spoiler'        => 'sometimes|boolean',
-            'image_urls'        => 'sometimes|array',
+            'image_urls'        => 'sometimes|nullable|array',
             'related_anime_id'  => 'sometimes|nullable|integer',
             'related_manga_id'  => 'sometimes|nullable|integer',
         ];
