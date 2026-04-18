@@ -95,4 +95,17 @@ class FriendshipController extends Controller
 
         return response()->json($pending);
     }
+    public function remove(Request $request, int $id): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $friendship = Friendship::where('id', $id)
+            ->where('status', 'accepted')
+            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
+            ->firstOrFail();
+
+        $friendship->delete();
+
+        return response()->json(['message' => 'Friend removed']);
+    }
 }

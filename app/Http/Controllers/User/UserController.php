@@ -41,4 +41,22 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Account disabled']);
     }
+    public function search(Request $request): JsonResponse
+    {
+        $query = $request->input('q');
+
+        if (!$query || strlen($query) < 2) {
+            return response()->json(['message' => 'Query must be at least 2 characters'], 422);
+        }
+
+        $users = User::where('is_deleted', false)
+            ->where(fn($q) => $q
+                ->where('username', 'ILIKE', "%{$query}%")
+            )
+            ->select('id', 'username', 'avatar_url', 'bio')
+            ->limit(20)
+            ->get();
+
+        return response()->json($users);
+    }
 }
