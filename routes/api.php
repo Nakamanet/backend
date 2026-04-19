@@ -97,3 +97,16 @@ Route::patch('/manga/{manga_id}', [LibraryController::class, 'mangaUpdate']);
 // Forum — add vote routes
 Route::post('/topics/{id}/vote', [ForumController::class, 'voteOnTopic']);
 Route::post('/replies/{id}/vote', [ForumController::class, 'voteOnReply']);
+
+
+
+///  notifs
+
+use App\Http\Controllers\Notification\NotificationController;
+
+Route::middleware('auth:api')->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('/unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('/{id}/read', [NotificationController::class, 'markAsRead']);
+    Route::patch('/read-all', [NotificationController::class, 'markAllAsRead']);
+});
