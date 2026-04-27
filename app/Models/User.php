@@ -72,4 +72,16 @@ class User extends Authenticatable implements JWTSubject
     {
         return UserFactory::new();
     }
+
+    public function savedPosts()
+    {
+        return $this->belongsToMany(\App\Models\Post\Post::class, 'Saved_Posts', 'user_id', 'post_id')
+            ->withTimestamps();
+    }
+
+    public function archivedPosts()
+    {
+        return $this->belongsToMany(\App\Models\Post\Post::class, 'Archived_Posts', 'user_id', 'post_id')
+            ->withTimestamps();
+    }
 }

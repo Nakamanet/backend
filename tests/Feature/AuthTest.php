@@ -3,9 +3,8 @@
 namespace Tests\Feature;
 
 use Tests\TestCase;
-use App\Models\User;
-use Laravel\Sanctum\Sanctum;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
+use App\Models\User;
 
 class AuthTest extends TestCase
 {
@@ -22,7 +21,7 @@ class AuthTest extends TestCase
         ]);
 
         $response->assertStatus(201)
-                ->assertJsonStructure(['token']);
+                 ->assertJsonStructure(['token']);
     }
 
     public function test_user_can_login()
@@ -40,7 +39,7 @@ class AuthTest extends TestCase
 
     public function test_user_can_logout()
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->be(User::factory()->create(), 'api');
 
         $response = $this->postJson('/api/auth/logout');
 
@@ -49,7 +48,7 @@ class AuthTest extends TestCase
 
     public function test_user_can_get_me()
     {
-        Sanctum::actingAs(User::factory()->create());
+        $this->be(User::factory()->create(), 'api');
 
         $response = $this->getJson('/api/auth/me');
 

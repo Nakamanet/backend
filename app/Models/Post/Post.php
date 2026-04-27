@@ -21,12 +21,14 @@ class Post extends Model
         'content',
         'image_urls',
         'is_spoiler',
+        'archived_at',
     ];
 
     protected $casts = [
-        'image_urls' => 'array',
-        'is_spoiler' => 'boolean',
-        'created_at' => 'datetime',
+        'image_urls'  => 'array',
+        'is_spoiler'  => 'boolean',
+        'created_at'  => 'datetime',
+        'archived_at' => 'datetime',
     ];
 
     public function user()
@@ -44,6 +46,28 @@ class Post extends Model
         return $this->hasMany(Like::class, 'post_id');
     }
 
+    public function savedBy()
+    {
+        return $this->belongsToMany(User::class, 'Saved_Posts', 'post_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function archivedBy()
+    {
+        return $this->belongsToMany(User::class, 'Archived_Posts', 'post_id', 'user_id')
+            ->withTimestamps();
+    }
+
+    public function scopeVisibleTo($query, ?int $userId)
+    {
+        $query->whereNull('archived_at');
+
+        if ($userId) {
+            $query->whereDoesntHave('archivedBy', fn($q) => $q->where('user_id', $userId));
+        }
+
+        return $query;
+    }
 
     protected static function newFactory()
     {
