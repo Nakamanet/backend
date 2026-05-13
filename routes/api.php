@@ -24,7 +24,10 @@ Route::prefix('auth')->group(function () {
 // Users
 Route::middleware(['auth:api', 'user.active'])->prefix('users')->group(function () {
     Route::get('/search', [UserController::class, 'search']);
+    // Public route — no auth required to view profiles
+    Route::get('{id}/profile', [UserController::class, 'profile']);
     Route::patch('/profile', [UserController::class, 'updateProfile']);
+    Route::patch('/profile/visibility', [UserController::class, 'updateVisibility']);
     Route::put('/disable/{id}', [UserController::class, 'disableAccount']);
     Route::get('/{id}/posts', [PostController::class, 'userPosts']);
     Route::get('/{id}/forum-topics', [ForumController::class, 'userTopics']);

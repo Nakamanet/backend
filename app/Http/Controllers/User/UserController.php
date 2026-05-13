@@ -11,6 +11,54 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    public function profile(Request $request, int $id): JsonResponse
+    {
+        $target = User::findOrFail($id);
+
+        // Always visible regardless of visibility setting
+        $public = [
+            'id'                 => $target->id,
+            'username'           => $target->username,
+            'avatar_url'         => $target->avatar_url,
+            'profile_visibility' => $target->profile_visibility,
+        ];
+
+        if ($target->profile_visibility === 'private') {
+            return response()->json($public, 200);
+        }
+
+        if ($target->profile_visibility === 'friends_only') {
+            // Guest users see only public data
+            if (! $request->user()) {
+                return response()->json($public, 200);
+            }
+
+            $isFriend = Friendship::where('status', 'accepted')
+                ->where(function ($q) use ($request, $target) {
+                    $q->where('requester_id', $request->user()->id)
+                    ->where('addressee_id', $target->id);
+                })
+                ->orWhere(function ($q) use ($request, $target) {
+                    $q->where('requester_id', $target->id)
+                    ->where('addressee_id', $request->user()->id);
+                })
+                ->exists();
+
+            if (! $isFriend && $request->user()->id !== $target->id) {
+                return response()->json($public, 200);
+            }
+        }
+
+        // public visibility OR confirmed friend OR viewing own profile
+        return response()->json([
+            ...$public,
+            'banner_url'   => $target->banner_url,
+            'bio'          => $target->bio,
+            'localisation' => $target->localisation,
+            'role'         => $target->role,
+            'created_at'   => $target->created_at,
+        ]);
+    }
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
     {
         $user      = $request->user();
@@ -58,5 +106,18 @@ class UserController extends Controller
             ->get();
 
         return response()->json($users);
+    }
+
+    public function updateVisibility(Request $request): JsonResponse
+    {
+        $request->validate([
+            'profile_visibility' => 'required|in:public,friends_only,private',
+        ]);
+
+        $request->user()->update([
+            'profile_visibility' => $request->profile_visibility,
+        ]);
+
+        return response()->json(['message' => 'Visibility updated']);
     }
 }
