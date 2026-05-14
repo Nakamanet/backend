@@ -13,7 +13,7 @@ class NotificationController extends Controller
     {
         $notifications = Notification::with('sender:id,username,avatar_url')
             ->where('recipient_id', $request->user()->id)
-            ->orderByDesc('created_at')
+            ->orderByDesc('id')
             ->paginate(20);
 
         return response()->json($notifications);

@@ -177,7 +177,7 @@ class NotificationTest extends TestCase
              ->assertOk()
              ->assertJson(['message' => 'Notification marked as read']);
 
-        $this->assertDatabaseHas('notifications', ['id' => $notif->id, 'is_read' => true]);
+        $this->assertDatabaseHas('Notifications', ['id' => $notif->id, 'is_read' => true]);
     }
 
     public function test_user_cannot_mark_another_users_notification_as_read()
@@ -192,7 +192,7 @@ class NotificationTest extends TestCase
         $this->patchJson("/api/notifications/{$notif->id}/read")
              ->assertStatus(404);
 
-        $this->assertDatabaseHas('notifications', ['id' => $notif->id, 'is_read' => false]);
+        $this->assertDatabaseHas('Notifications', ['id' => $notif->id, 'is_read' => false]);
     }
 
     public function test_marking_nonexistent_notification_returns_404()
@@ -240,8 +240,8 @@ class NotificationTest extends TestCase
              ->assertOk()
              ->assertJson(['message' => 'All notifications marked as read']);
 
-        $this->assertDatabaseHas('notifications', ['id' => $n1->id, 'is_read' => true]);
-        $this->assertDatabaseHas('notifications', ['id' => $n2->id, 'is_read' => true]);
+        $this->assertDatabaseHas('Notifications', ['id' => $n1->id, 'is_read' => true]);
+        $this->assertDatabaseHas('Notifications', ['id' => $n2->id, 'is_read' => true]);
     }
 
     public function test_mark_all_as_read_does_not_affect_other_users()
@@ -254,7 +254,7 @@ class NotificationTest extends TestCase
         $this->be($user, 'api');
         $this->patchJson('/api/notifications/read-all')->assertOk();
 
-        $this->assertDatabaseHas('notifications', ['id' => $otherNotif->id, 'is_read' => false]);
+        $this->assertDatabaseHas('Notifications', ['id' => $otherNotif->id, 'is_read' => false]);
     }
 
     public function test_mark_all_as_read_is_idempotent_when_nothing_unread()
@@ -268,6 +268,8 @@ class NotificationTest extends TestCase
 
     public function test_unread_count_is_zero_after_mark_all_as_read()
     {
+        $this->withoutExceptionHandling();
+
         $user   = User::factory()->create();
         $sender = User::factory()->create();
 
