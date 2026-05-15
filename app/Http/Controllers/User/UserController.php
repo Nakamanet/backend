@@ -4,6 +4,7 @@ namespace App\Http\Controllers\User;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateProfileRequest;
+use App\Models\Friendship;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -20,6 +21,9 @@ class UserController extends Controller
             'id'                 => $target->id,
             'username'           => $target->username,
             'avatar_url'         => $target->avatar_url,
+            'banner_url'         => $target->banner_url,
+            'bio'                => $target->bio,
+            'localisation'       => $target->localisation,
             'profile_visibility' => $target->profile_visibility,
             'created_at'         => $target->created_at,
         ];
@@ -53,10 +57,7 @@ class UserController extends Controller
         // public visibility OR confirmed friend OR viewing own profile
         return response()->json([
             ...$public,
-            'banner_url'   => $target->banner_url,
-            'bio'          => $target->bio,
-            'localisation' => $target->localisation,
-            'role'         => $target->role,
+            'role' => $target->role,
         ]);
     }
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
