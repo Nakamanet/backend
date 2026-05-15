@@ -21,6 +21,7 @@ class UserController extends Controller
             'username'           => $target->username,
             'avatar_url'         => $target->avatar_url,
             'profile_visibility' => $target->profile_visibility,
+            'created_at'         => $target->created_at,
         ];
 
         if ($target->profile_visibility === 'private') {
@@ -56,7 +57,6 @@ class UserController extends Controller
             'bio'          => $target->bio,
             'localisation' => $target->localisation,
             'role'         => $target->role,
-            'created_at'   => $target->created_at,
         ]);
     }
     public function updateProfile(UpdateProfileRequest $request): JsonResponse
