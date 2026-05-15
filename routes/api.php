@@ -30,6 +30,7 @@ Route::prefix('users')->group(function () {
         Route::patch('/profile', [UserController::class, 'updateProfile']);
         Route::patch('/profile/visibility', [UserController::class, 'updateVisibility']);
         Route::put('/disable/{id}', [UserController::class, 'disableAccount']);
+        Route::delete('/{id}', [UserController::class, 'deleteAccount']);
         Route::get('/{id}/posts', [PostController::class, 'userPosts']);
         Route::get('/{id}/forum-topics', [ForumController::class, 'userTopics']);
     });

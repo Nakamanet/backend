@@ -99,6 +99,19 @@ class UserController extends Controller
 
         return response()->json(['message' => 'Account disabled']);
     }
+
+    public function deleteAccount(Request $request, int $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        if ($user->id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $user->delete();
+
+        return response()->json(['message' => 'Account permanently deleted']);
+    }
     public function search(Request $request): JsonResponse
     {
         $query = $request->input('q');
