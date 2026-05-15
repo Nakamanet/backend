@@ -16,6 +16,12 @@ class UserController extends Controller
     {
         $target = User::findOrFail($id);
 
+        $postsCount   = $target->posts()->whereNull('archived_at')->count();
+        $friendsCount = Friendship::where('status', 'accepted')
+            ->where(fn($q) => $q->where('requester_id', $target->id)->orWhere('addressee_id', $target->id))
+            ->count();
+        $libraryCount = $target->animeLibrary()->count() + $target->mangaLibrary()->count();
+
         // Always visible regardless of visibility setting
         $public = [
             'id'                 => $target->id,
@@ -26,6 +32,9 @@ class UserController extends Controller
             'localisation'       => $target->localisation,
             'profile_visibility' => $target->profile_visibility,
             'created_at'         => $target->created_at,
+            'posts_count'        => $postsCount,
+            'friends_count'      => $friendsCount,
+            'library_count'      => $libraryCount,
         ];
 
         if ($target->profile_visibility === 'private') {
