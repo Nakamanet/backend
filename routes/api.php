@@ -8,6 +8,7 @@ use App\Http\Controllers\Forum\ForumController;
 use App\Http\Controllers\Friendship\FriendshipController;
 use App\Http\Controllers\Library\LibraryController;
 use App\Http\Controllers\Notification\NotificationController;
+use App\Http\Controllers\Upload\UploadController;
 
 // Auth
 Route::prefix('auth')->group(function () {
@@ -109,6 +110,14 @@ Route::middleware(['auth:api', 'user.active'])->prefix('library')->group(functio
     Route::post('/manga', [LibraryController::class, 'mangaStore']);
     Route::patch('/manga/{manga_id}', [LibraryController::class, 'mangaUpdate']);
     Route::delete('/manga/{manga_id}', [LibraryController::class, 'mangaDestroy']);
+});
+
+// Uploads
+Route::middleware(['auth:api', 'user.active'])->prefix('upload')->group(function () {
+    Route::post('/avatar',      [UploadController::class, 'avatar']);
+    Route::post('/banner',      [UploadController::class, 'banner']);
+    Route::post('/post-image',  [UploadController::class, 'postImage']);
+    Route::post('/emoji',       [UploadController::class, 'emoji']);
 });
 
 // Notifications
