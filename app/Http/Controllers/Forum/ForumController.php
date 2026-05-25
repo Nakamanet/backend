@@ -7,6 +7,7 @@ use App\Http\Requests\Forum\ReplyTopicRequest;
 use App\Http\Requests\Forum\StoreTopicRequest;
 use App\Models\Forum\ForumReply;
 use App\Models\Forum\ForumTopic;
+use App\Models\Forum\ForumTopicView;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -40,6 +41,18 @@ class ForumController extends Controller
     public function show(int $id): JsonResponse
     {
         $topic = ForumTopic::with(['user', 'replies.user'])->findOrFail($id);
+
+        $user = auth('api')->user();
+        if ($user) {
+            $view = ForumTopicView::firstOrCreate([
+                'topic_id' => $id,
+                'user_id'  => $user->id,
+            ]);
+            if ($view->wasRecentlyCreated) {
+                $topic->increment('views_count');
+                $topic->views_count++;
+            }
+        }
 
         return response()->json($topic);
     }
