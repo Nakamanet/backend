@@ -16,6 +16,11 @@ class ForumController extends Controller
     {
         $topics = ForumTopic::withCount('replies')
             ->with('user')
+            ->when($request->search,    fn($q) => $q->where(fn($sub) => $sub
+                ->where('title', 'ILIKE', '%' . $request->search . '%')
+                ->orWhere('content', 'ILIKE', '%' . $request->search . '%')
+                ->orWhereHas('user', fn($u) => $u->where('username', 'ILIKE', '%' . $request->search . '%'))
+            ))
             ->when($request->category,  fn($q) => $q->where('category', $request->category))
             ->when($request->user_id,   fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->anime_id,  fn($q) => $q->where('related_anime_id', $request->anime_id))
