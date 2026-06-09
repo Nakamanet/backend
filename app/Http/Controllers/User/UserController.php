@@ -29,6 +29,19 @@ class UserController extends Controller
         ]);
     }
 
+    public function getProfile(Request $request, int $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        return response()->json([
+            'library_count' => $user->animeLibrary()->count() + $user->mangaLibrary()->count(),
+            'friends_count' => \App\Models\Friendship::where(function ($q) use ($id) {
+                $q->where('requester_id', $id)->orWhere('addressee_id', $id);
+            })->where('status', 'accepted')->count(),
+            'posts_count'   => $user->posts()->count(),
+        ]);
+    }
+
     public function disableAccount(Request $request, int $id): JsonResponse
     {
         $user = User::findOrFail($id);

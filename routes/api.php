@@ -23,10 +23,11 @@ Route::prefix('auth')->group(function () {
 // Users
 Route::middleware('auth:api')->prefix('users')->group(function () {
     Route::patch('/profile', [UserController::class, 'updateProfile']);
+    Route::get('/{id}/profile', [UserController::class, 'getProfile']);
     Route::put('/disable/{id}', [UserController::class, 'disableAccount']);
 
-    Route::get('/users/{id}/posts', [PostController::class, 'userPosts']);
-    Route::get('/users/{id}/forum-topics', [ForumController::class, 'userTopics']);
+    Route::get('/{id}/posts', [PostController::class, 'userPosts']);
+    Route::get('/{id}/forum-topics', [ForumController::class, 'userTopics']);
 });
 
 // Posts
