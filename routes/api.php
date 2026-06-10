@@ -7,6 +7,7 @@ use App\Http\Controllers\Like\LikeController;
 use App\Http\Controllers\Forum\ForumController;
 use App\Http\Controllers\Friendship\FriendshipController;
 use App\Http\Controllers\Library\LibraryController;
+use App\Http\Controllers\Upload\UploadController;
 
 // Auth
 Route::prefix('auth')->group(function () {
@@ -70,6 +71,12 @@ Route::middleware('auth:api')->prefix('friends')->group(function () {
     Route::patch('/{id}/accept', [FriendshipController::class, 'accept']);
     Route::delete('/{id}/decline', [FriendshipController::class, 'decline']);
     Route::patch('/{id}/block', [FriendshipController::class, 'block']);
+});
+
+// Upload
+Route::middleware('auth:api')->prefix('upload')->group(function () {
+    Route::post('/avatar', [UploadController::class, 'avatar']);
+    Route::post('/banner', [UploadController::class, 'banner']);
 });
 
 // Library
