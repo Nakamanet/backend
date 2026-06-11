@@ -5,6 +5,7 @@ namespace App\Http\Controllers\User;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateProfileRequest;
 use App\Models\User;
+use App\Models\Friendship\Friendship;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -35,7 +36,7 @@ class UserController extends Controller
 
         return response()->json([
             'library_count' => $user->animeLibrary()->count() + $user->mangaLibrary()->count(),
-            'friends_count' => \App\Models\Friendship::where(function ($q) use ($id) {
+            'friends_count' => Friendship::where(function ($q) use ($id) {
                 $q->where('requester_id', $id)->orWhere('addressee_id', $id);
             })->where('status', 'accepted')->count(),
             'posts_count'   => $user->posts()->count(),

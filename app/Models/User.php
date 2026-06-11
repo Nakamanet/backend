@@ -7,6 +7,9 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
 
+use App\Models\Post\Post;
+use App\Models\Library\UserAnimeLibrary;
+use App\Models\Library\UserMangaLibrary;
 use Database\Factories\UserFactory;
 
 class User extends Authenticatable implements JWTSubject
