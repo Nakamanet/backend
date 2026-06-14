@@ -6,15 +6,17 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use PHPOpenSourceSaver\JWTAuth\Contracts\JWTSubject;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Auth\MustVerifyEmail as MustVerifyEmailTrait;
 
 use App\Models\Post\Post;
 use App\Models\Library\UserAnimeLibrary;
 use App\Models\Library\UserMangaLibrary;
 use Database\Factories\UserFactory;
 
-class User extends Authenticatable implements JWTSubject
+class User extends Authenticatable implements JWTSubject, MustVerifyEmail
 {
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, MustVerifyEmailTrait;
 
     protected $table = 'Users';
 
@@ -36,13 +38,13 @@ class User extends Authenticatable implements JWTSubject
     protected $hidden = [
         'password_hash',
     ];
-    
 
     protected $casts = [
-        'birthdate'    => 'date',
-        'is_deleted'   => 'boolean',
-        'is_admin'     => 'boolean',
-        'is_moderator' => 'boolean',
+        'birthdate'          => 'date',
+        'email_verified_at'  => 'datetime',
+        'is_deleted'         => 'boolean',
+        'is_admin'           => 'boolean',
+        'is_moderator'       => 'boolean',
     ];
 
     public function getJWTIdentifier()
@@ -59,7 +61,7 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(Post::class, 'user_id');
     }
-    
+
     public function animeLibrary()
     {
         return $this->hasMany(UserAnimeLibrary::class, 'user_id');
@@ -69,7 +71,6 @@ class User extends Authenticatable implements JWTSubject
     {
         return $this->hasMany(UserMangaLibrary::class, 'user_id');
     }
-
 
     protected static function newFactory(): UserFactory
     {
