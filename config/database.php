@@ -96,6 +96,12 @@ return [
             'prefix_indexes' => true,
             'search_path' => 'public',
             'sslmode' => env('DB_SSLMODE', 'prefer'),
+            // Neon pooler (PgBouncer): emulate prepares client-side so no
+            // server-side cached plan survives schema changes ("cached plan
+            // must not change result type").
+            'options' => [
+                PDO::ATTR_EMULATE_PREPARES => true,
+            ],
         ],
 
         'sqlsrv' => [

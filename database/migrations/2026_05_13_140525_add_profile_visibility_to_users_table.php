@@ -11,8 +11,8 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
+        Schema::table('Users', function (Blueprint $table) {
+            $table->string('profile_visibility')->default('public');
         });
     }
 
@@ -21,8 +21,8 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('users', function (Blueprint $table) {
-            //
+        Schema::table('Users', function (Blueprint $table) {
+            $table->dropColumn('profile_visibility');
         });
     }
 };
