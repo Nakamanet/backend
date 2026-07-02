@@ -31,6 +31,7 @@ class User extends Authenticatable implements JWTSubject
         'is_deleted',
         'is_admin',
         'is_moderator',
+        'profile_visibility',
     ];
 
     protected $hidden = [
