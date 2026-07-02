@@ -21,13 +21,17 @@ class ForumTopic extends Model
         'related_manga_id',
         'is_pinned',
         'is_locked',
+        'views_count',
+        'votes_count',
     ];
 
     protected $casts = [
-        'is_pinned'  => 'boolean',
-        'is_locked'  => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'is_pinned'    => 'boolean',
+        'is_locked'    => 'boolean',
+        'views_count'  => 'integer',
+        'votes_count'  => 'integer',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
     ];
 
     public function user()

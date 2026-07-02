@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\User\UpdateProfileRequest;
 use App\Models\Friendship\Friendship;
 use App\Models\User;
+use App\Models\Friendship\Friendship;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -84,6 +85,19 @@ class UserController extends Controller
         return response()->json([
             'message' => 'Profile updated successfully',
             'user'    => $user->fresh(),
+        ]);
+    }
+
+    public function getProfile(Request $request, int $id): JsonResponse
+    {
+        $user = User::findOrFail($id);
+
+        return response()->json([
+            'library_count' => $user->animeLibrary()->count() + $user->mangaLibrary()->count(),
+            'friends_count' => Friendship::where(function ($q) use ($id) {
+                $q->where('requester_id', $id)->orWhere('addressee_id', $id);
+            })->where('status', 'accepted')->count(),
+            'posts_count'   => $user->posts()->count(),
         ]);
     }
 

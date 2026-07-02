@@ -99,6 +99,12 @@ Route::middleware(['auth:api', 'user.active'])->prefix('friends')->group(functio
     Route::patch('/{id}/block', [FriendshipController::class, 'block']);
 });
 
+// Upload
+Route::middleware('auth:api')->prefix('upload')->group(function () {
+    Route::post('/avatar', [UploadController::class, 'avatar']);
+    Route::post('/banner', [UploadController::class, 'banner']);
+});
+
 // Library
 Route::middleware(['auth:api', 'user.active'])->prefix('library')->group(function () {
     Route::get('/anime', [LibraryController::class, 'animeIndex']);

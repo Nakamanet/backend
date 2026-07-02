@@ -7,6 +7,8 @@ use App\Http\Requests\Forum\ReplyTopicRequest;
 use App\Http\Requests\Forum\StoreTopicRequest;
 use App\Models\Forum\ForumReply;
 use App\Models\Forum\ForumTopic;
+use App\Models\Forum\ForumTopicView;
+use App\Models\Forum\ForumVote;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -16,6 +18,11 @@ class ForumController extends Controller
     {
         $topics = ForumTopic::withCount('replies')
             ->with('user')
+            ->when($request->search,    fn($q) => $q->where(fn($sub) => $sub
+                ->where('title', 'ILIKE', '%' . $request->search . '%')
+                ->orWhere('content', 'ILIKE', '%' . $request->search . '%')
+                ->orWhereHas('user', fn($u) => $u->where('username', 'ILIKE', '%' . $request->search . '%'))
+            ))
             ->when($request->category,  fn($q) => $q->where('category', $request->category))
             ->when($request->user_id,   fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->anime_id,  fn($q) => $q->where('related_anime_id', $request->anime_id))
@@ -36,7 +43,72 @@ class ForumController extends Controller
     {
         $topic = ForumTopic::with(['user', 'replies.user'])->findOrFail($id);
 
+        $user = auth('api')->user();
+        if ($user) {
+            $view = ForumTopicView::firstOrCreate([
+                'topic_id' => $id,
+                'user_id'  => $user->id,
+            ]);
+            if ($view->wasRecentlyCreated) {
+                $topic->increment('views_count');
+                $topic->views_count++;
+            }
+
+            $topic->user_has_voted = ForumVote::where([
+                'user_id'     => $user->id,
+                'target_type' => 'topic',
+                'target_id'   => $id,
+            ])->exists();
+
+            $replyIds = $topic->replies->pluck('id')->toArray();
+            $votedReplyIds = $replyIds ? ForumVote::where('user_id', $user->id)
+                ->where('target_type', 'reply')
+                ->whereIn('target_id', $replyIds)
+                ->pluck('target_id')
+                ->toArray() : [];
+
+            foreach ($topic->replies as $reply) {
+                $reply->user_has_voted = in_array($reply->id, $votedReplyIds);
+            }
+        } else {
+            $topic->user_has_voted = false;
+            foreach ($topic->replies as $reply) {
+                $reply->user_has_voted = false;
+            }
+        }
+
         return response()->json($topic);
+    }
+
+    public function voteOnTopic(Request $request, int $id): JsonResponse
+    {
+        return $this->toggleVote('topic', $id, ForumTopic::findOrFail($id), $request->user()->id);
+    }
+
+    public function voteOnReply(Request $request, int $id): JsonResponse
+    {
+        return $this->toggleVote('reply', $id, ForumReply::findOrFail($id), $request->user()->id);
+    }
+
+    private function toggleVote(string $type, int $targetId, $model, int $userId): JsonResponse
+    {
+        $vote = ForumVote::where([
+            'user_id'     => $userId,
+            'target_type' => $type,
+            'target_id'   => $targetId,
+        ])->first();
+
+        if ($vote) {
+            $vote->delete();
+            $model->decrement('votes_count');
+            $model->refresh();
+            return response()->json(['votes_count' => $model->votes_count, 'user_has_voted' => false]);
+        }
+
+        ForumVote::create(['user_id' => $userId, 'target_type' => $type, 'target_id' => $targetId]);
+        $model->increment('votes_count');
+        $model->refresh();
+        return response()->json(['votes_count' => $model->votes_count, 'user_has_voted' => true]);
     }
 
     public function store(StoreTopicRequest $request): JsonResponse

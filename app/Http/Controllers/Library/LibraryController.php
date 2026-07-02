@@ -24,20 +24,23 @@ class LibraryController extends Controller
     public function animeStore(AnimeLibraryRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $userId = $request->user()->id;
+        $conditions = ['user_id' => $userId, 'anime_id' => $validated['anime_id']];
+        $data = array_merge($validated, ['user_id' => $userId]);
 
-        $entry = UserAnimeLibrary::updateOrCreate(
-            ['user_id' => $request->user()->id, 'anime_id' => $validated['anime_id']],
-            $validated + ['user_id' => $request->user()->id]
-        );
+        $affected = UserAnimeLibrary::where($conditions)->update($data);
 
-        return response()->json($entry, 201);
+        if ($affected === 0) {
+            UserAnimeLibrary::create($data);
+        }
+
+        return response()->json(UserAnimeLibrary::where($conditions)->first(), 201);
     }
 
     public function animeDestroy(Request $request, int $animeId): JsonResponse
     {
         UserAnimeLibrary::where('user_id', $request->user()->id)
             ->where('anime_id', $animeId)
-            ->firstOrFail()
             ->delete();
 
         return response()->json(['message' => 'Removed from library']);
@@ -55,20 +58,23 @@ class LibraryController extends Controller
     public function mangaStore(MangaLibraryRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $userId = $request->user()->id;
+        $conditions = ['user_id' => $userId, 'manga_id' => $validated['manga_id']];
+        $data = array_merge($validated, ['user_id' => $userId]);
 
-        $entry = UserMangaLibrary::updateOrCreate(
-            ['user_id' => $request->user()->id, 'manga_id' => $validated['manga_id']],
-            $validated + ['user_id' => $request->user()->id]
-        );
+        $affected = UserMangaLibrary::where($conditions)->update($data);
 
-        return response()->json($entry, 201);
+        if ($affected === 0) {
+            UserMangaLibrary::create($data);
+        }
+
+        return response()->json(UserMangaLibrary::where($conditions)->first(), 201);
     }
 
     public function mangaDestroy(Request $request, int $mangaId): JsonResponse
     {
         UserMangaLibrary::where('user_id', $request->user()->id)
             ->where('manga_id', $mangaId)
-            ->firstOrFail()
             ->delete();
 
         return response()->json(['message' => 'Removed from library']);

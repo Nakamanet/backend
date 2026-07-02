@@ -17,11 +17,13 @@ class ForumReply extends Model
         'user_id',
         'parent_id',
         'content',
+        'votes_count',
     ];
 
     protected $casts = [
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        'votes_count' => 'integer',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
     ];
 
     public function user()
