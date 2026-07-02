@@ -12,41 +12,71 @@ class UploadController extends Controller
 {
     public function avatar(Request $request): JsonResponse
     {
-        $field = $request->hasFile('avatar') ? 'avatar' : 'file';
         $request->validate([
-            $field => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:2048',
+            'file' => 'required|image|mimes:jpeg,png,webp|max:5120',
         ]);
 
-        return $this->uploadImage($request, $field, 'avatar', 'avatars');
+        $user = $request->user();
+        $path = 'avatars/' . $user->id . '_' . Str::uuid() . '.' . $request->file('file')->extension();
+
+        Storage::disk('r2')->put($path, file_get_contents($request->file('file')), 'public');
+
+        $url = Storage::disk('r2')->url($path);
+
+        $user->update(['avatar_url' => $url]);
+
+        return response()->json(['url' => $url]);
     }
 
     public function banner(Request $request): JsonResponse
     {
-        $field = $request->hasFile('banner') ? 'banner' : 'file';
         $request->validate([
-            $field => 'required|image|mimes:jpeg,png,jpg,gif,webp|max:5120',
+            'file' => 'required|image|mimes:jpeg,png,webp|max:5120',
         ]);
 
-        return $this->uploadImage($request, $field, 'banner', 'banners');
+        $user = $request->user();
+        $path = 'banners/' . $user->id . '_' . Str::uuid() . '.' . $request->file('file')->extension();
+
+        Storage::disk('r2')->put($path, file_get_contents($request->file('file')), 'public');
+
+        $url = Storage::disk('r2')->url($path);
+
+        $user->update(['banner_url' => $url]);
+
+        return response()->json(['url' => $url]);
     }
 
-    private function uploadImage(Request $request, string $field, string $urlField, string $folder): JsonResponse
+    public function postImage(Request $request): JsonResponse
     {
-        $user = $request->user();
-        $file = $request->file($field);
-
-        $filename = Str::uuid() . '.' . $file->getClientOriginalExtension();
-        $path = $folder . '/' . $filename;
-
-        Storage::disk('r2')->put($path, file_get_contents($file), 'public');
-
-        $url = rtrim(env('CLOUDFLARE_R2_URL'), '/') . '/' . $path;
-
-        $user->update([$urlField . '_url' => $url]);
-
-        return response()->json([
-            'message' => ucfirst($urlField) . ' uploaded successfully',
-            'url'     => $url,
+        $request->validate([
+            'files'   => 'required|array|max:10',
+            'files.*' => 'required|file|mimes:jpeg,png,gif,webp|max:10240',
         ]);
+
+        $urls = [];
+
+        foreach ($request->file('files') as $file) {
+            $path = 'posts/' . Str::uuid() . '.' . $file->extension();
+            Storage::disk('r2')->put($path, file_get_contents($file), 'public');
+            $urls[] = Storage::disk('r2')->url($path);
+        }
+
+        return response()->json(['urls' => $urls], 201);
+    }
+
+    public function emoji(Request $request): JsonResponse
+    {
+        $request->validate([
+            'file' => 'required|file|mimes:png,gif,webp|max:256|dimensions:ratio=1',
+            'name' => 'required|string|max:32|alpha_dash',
+        ]);
+
+        $path = 'emojis/' . $request->name . '_' . Str::uuid() . '.' . $request->file('file')->extension();
+
+        Storage::disk('r2')->put($path, file_get_contents($request->file('file')), 'public');
+
+        $url = Storage::disk('r2')->url($path);
+
+        return response()->json(['url' => $url, 'name' => $request->name], 201);
     }
 }

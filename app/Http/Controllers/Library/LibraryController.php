@@ -79,4 +79,26 @@ class LibraryController extends Controller
 
         return response()->json(['message' => 'Removed from library']);
     }
+
+    public function animeUpdate(Request $request, int $animeId): JsonResponse
+    {
+        $entry = UserAnimeLibrary::where('user_id', $request->user()->id)
+            ->where('anime_id', $animeId)
+            ->firstOrFail();
+
+        $entry->update($request->only(['status', 'progress', 'score', 'rewatch_count', 'is_private']));
+
+        return response()->json($entry);
+    }
+
+    public function mangaUpdate(Request $request, int $mangaId): JsonResponse
+    {
+        $entry = UserMangaLibrary::where('user_id', $request->user()->id)
+            ->where('manga_id', $mangaId)
+            ->firstOrFail();
+
+        $entry->update($request->only(['status', 'progress', 'score', 'reread_count', 'is_private']));
+
+        return response()->json($entry);
+    }
 }

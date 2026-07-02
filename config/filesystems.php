@@ -66,13 +66,14 @@ return [
             'secret' => env('CLOUDFLARE_R2_SECRET_ACCESS_KEY'),
             'region' => 'auto',
             'bucket' => env('CLOUDFLARE_R2_BUCKET'),
-            'url' => env('CLOUDFLARE_R2_URL'),
             'endpoint' => env('CLOUDFLARE_R2_ENDPOINT'),
+            'url' => env('CLOUDFLARE_R2_URL'),
             'use_path_style_endpoint' => false,
+            'visibility' => 'public',
             'throw' => false,
             'report' => false,
-        ],
-
+        ]
+        
     ],
 
     /*
