@@ -96,7 +96,8 @@ Route::middleware(['auth:api', 'user.active'])->prefix('friends')->group(functio
     Route::patch('/{id}/accept', [FriendshipController::class, 'accept']);
     Route::delete('/{id}/decline', [FriendshipController::class, 'decline']);
     Route::delete('/{id}/remove', [FriendshipController::class, 'remove']);
-    Route::patch('/{id}/block', [FriendshipController::class, 'block']);
+    Route::post('/block', [FriendshipController::class, 'block']);
+    Route::delete('/{id}/unblock', [FriendshipController::class, 'unblock']);
 });
 
 // Upload

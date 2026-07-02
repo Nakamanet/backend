@@ -22,6 +22,29 @@ class UserController extends Controller
             ->count();
         $libraryCount = $target->animeLibrary()->count() + $target->mangaLibrary()->count();
 
+        $friendshipStatus = 'none';
+        $friendshipId     = null;
+
+        if ($request->user() && $request->user()->id !== $target->id) {
+            $viewerId   = $request->user()->id;
+            $friendship = Friendship::where(fn($q) => $q->where('requester_id', $viewerId)->where('addressee_id', $target->id))
+                ->orWhere(fn($q) => $q->where('requester_id', $target->id)->where('addressee_id', $viewerId))
+                ->first();
+
+            if ($friendship) {
+                $friendshipId = $friendship->id;
+
+                $friendshipStatus = match (true) {
+                    $friendship->status === 'accepted' => 'friends',
+                    $friendship->status === 'pending' && $friendship->requester_id === $viewerId => 'pending_sent',
+                    $friendship->status === 'pending' => 'pending_received',
+                    $friendship->status === 'blocked' && $friendship->requester_id === $viewerId => 'blocked',
+                    $friendship->status === 'blocked' => 'blocked_by',
+                    default => 'none',
+                };
+            }
+        }
+
         // Always visible regardless of visibility setting
         $public = [
             'id'                 => $target->id,
@@ -35,6 +58,8 @@ class UserController extends Controller
             'posts_count'        => $postsCount,
             'friends_count'      => $friendsCount,
             'library_count'      => $libraryCount,
+            'friendship_status'  => $friendshipStatus,
+            'friendship_id'      => $friendshipId,
         ];
 
         if ($target->profile_visibility === 'private') {
@@ -84,19 +109,6 @@ class UserController extends Controller
         return response()->json([
             'message' => 'Profile updated successfully',
             'user'    => $user->fresh(),
-        ]);
-    }
-
-    public function getProfile(Request $request, int $id): JsonResponse
-    {
-        $user = User::findOrFail($id);
-
-        return response()->json([
-            'library_count' => $user->animeLibrary()->count() + $user->mangaLibrary()->count(),
-            'friends_count' => Friendship::where(function ($q) use ($id) {
-                $q->where('requester_id', $id)->orWhere('addressee_id', $id);
-            })->where('status', 'accepted')->count(),
-            'posts_count'   => $user->posts()->count(),
         ]);
     }
 

@@ -19,12 +19,12 @@ class FriendshipController extends Controller
             return response()->json(['message' => 'You cannot add yourself'], 422);
         }
 
-        $existing = Friendship::where('requester_id', $userId)
-            ->where('addressee_id', $addresseeId)
+        $existing = Friendship::where(fn($q) => $q->where('requester_id', $userId)->where('addressee_id', $addresseeId))
+            ->orWhere(fn($q) => $q->where('requester_id', $addresseeId)->where('addressee_id', $userId))
             ->first();
 
         if ($existing) {
-            return response()->json(['message' => 'Request already sent'], 422);
+            return response()->json(['message' => 'A relationship already exists with this user'], 422);
         }
 
         $friendship = Friendship::create([
@@ -61,17 +61,52 @@ class FriendshipController extends Controller
         return response()->json(['message' => 'Friend request declined']);
     }
 
-    public function block(Request $request, int $id): JsonResponse
+    public function block(Request $request): JsonResponse
+    {
+        $request->validate([
+            'user_id' => 'required|integer|exists:Users,id',
+        ]);
+
+        $userId   = $request->user()->id;
+        $targetId = $request->user_id;
+
+        if ($userId === $targetId) {
+            return response()->json(['message' => 'You cannot block yourself'], 422);
+        }
+
+        $friendship = Friendship::where(fn($q) => $q->where('requester_id', $userId)->where('addressee_id', $targetId))
+            ->orWhere(fn($q) => $q->where('requester_id', $targetId)->where('addressee_id', $userId))
+            ->first();
+
+        if ($friendship) {
+            $friendship->update([
+                'requester_id' => $userId,
+                'addressee_id' => $targetId,
+                'status'       => 'blocked',
+            ]);
+        } else {
+            $friendship = Friendship::create([
+                'requester_id' => $userId,
+                'addressee_id' => $targetId,
+                'status'       => 'blocked',
+            ]);
+        }
+
+        return response()->json(['message' => 'User blocked', 'friendship_id' => $friendship->id]);
+    }
+
+    public function unblock(Request $request, int $id): JsonResponse
     {
         $userId = $request->user()->id;
 
         $friendship = Friendship::where('id', $id)
-            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
+            ->where('requester_id', $userId)
+            ->where('status', 'blocked')
             ->firstOrFail();
 
-        $friendship->update(['status' => 'blocked']);
+        $friendship->delete();
 
-        return response()->json(['message' => 'User blocked']);
+        return response()->json(['message' => 'User unblocked']);
     }
 
     public function index(Request $request): JsonResponse
