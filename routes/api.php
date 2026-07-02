@@ -10,6 +10,11 @@ use App\Http\Controllers\Library\LibraryController;
 use App\Http\Controllers\Notification\NotificationController;
 use App\Http\Controllers\Upload\UploadController;
 
+use App\Http\Controllers\Auth\EmailVerificationController;
+
+Route::get('/email/verify/{id}/{hash}', [EmailVerificationController::class, 'verify'])
+    ->middleware('signed')
+    ->name('verification.verify');
 // Auth
 Route::prefix('auth')->group(function () {
     Route::post('/register', [AuthController::class, 'register']);
