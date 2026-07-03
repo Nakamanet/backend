@@ -130,6 +130,26 @@ class FriendshipController extends Controller
 
         return response()->json($pending);
     }
+    public function sent(Request $request): JsonResponse
+    {
+        $sent = Friendship::with('requester', 'addressee')
+            ->where('requester_id', $request->user()->id)
+            ->where('status', 'pending')
+            ->get();
+
+        return response()->json($sent);
+    }
+
+    public function blocked(Request $request): JsonResponse
+    {
+        $blocked = Friendship::with('requester', 'addressee')
+            ->where('requester_id', $request->user()->id)
+            ->where('status', 'blocked')
+            ->get();
+
+        return response()->json($blocked);
+    }
+
     public function remove(Request $request, int $id): JsonResponse
     {
         $userId = $request->user()->id;
