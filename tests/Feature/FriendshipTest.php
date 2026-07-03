@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Friendship\Friendship;
+use App\Models\Notification\Notification;
 use App\Models\User;
 use Illuminate\Foundation\Testing\DatabaseTransactions;
 use Tests\TestCase;
@@ -189,5 +190,135 @@ class FriendshipTest extends TestCase
         $this->getJson('/api/friends/blocked')
              ->assertOk()
              ->assertJsonCount(0);
+    }
+
+    // -------------------------------------------------------------------------
+    // POST /api/friends/send
+    // -------------------------------------------------------------------------
+
+    public function test_unauthenticated_user_cannot_send_friend_request()
+    {
+        $addressee = User::factory()->create();
+
+        $this->postJson('/api/friends/send', ['addressee_id' => $addressee->id])
+             ->assertStatus(401);
+    }
+
+    public function test_send_creates_a_pending_friendship()
+    {
+        $user      = User::factory()->create();
+        $addressee = User::factory()->create();
+
+        $this->be($user, 'api');
+
+        $this->postJson('/api/friends/send', ['addressee_id' => $addressee->id])
+             ->assertCreated()
+             ->assertJsonFragment([
+                 'requester_id' => $user->id,
+                 'addressee_id' => $addressee->id,
+                 'status'       => 'pending',
+             ]);
+
+        $this->assertDatabaseHas('Friendships', [
+            'requester_id' => $user->id,
+            'addressee_id' => $addressee->id,
+            'status'       => 'pending',
+        ]);
+    }
+
+    public function test_send_creates_a_friend_request_notification_for_the_addressee()
+    {
+        $user      = User::factory()->create();
+        $addressee = User::factory()->create();
+
+        $this->be($user, 'api');
+
+        $this->postJson('/api/friends/send', ['addressee_id' => $addressee->id])
+             ->assertCreated();
+
+        $friendship = Friendship::where('requester_id', $user->id)
+            ->where('addressee_id', $addressee->id)
+            ->firstOrFail();
+
+        $notification = Notification::where('recipient_id', $addressee->id)
+            ->where('sender_id', $user->id)
+            ->where('type', 'friend_request')
+            ->first();
+
+        $this->assertNotNull($notification, 'A friend_request notification should be created for the addressee');
+        $this->assertFalse($notification->is_read);
+        $this->assertSame(['friendship_id' => $friendship->id], $notification->payload);
+    }
+
+    public function test_send_notification_is_exposed_to_the_addressee_with_sender_loaded()
+    {
+        $user      = User::factory()->create();
+        $addressee = User::factory()->create();
+
+        $this->be($user, 'api');
+        $this->postJson('/api/friends/send', ['addressee_id' => $addressee->id])
+             ->assertCreated();
+
+        // The addressee retrieves their notifications
+        $this->be($addressee, 'api');
+
+        $this->getJson('/api/notifications')
+             ->assertOk()
+             ->assertJsonFragment([
+                 'recipient_id' => $addressee->id,
+                 'sender_id'    => $user->id,
+                 'type'         => 'friend_request',
+                 'is_read'      => false,
+             ])
+             ->assertJsonPath('data.0.sender.id', $user->id)
+             ->assertJsonStructure([
+                 'data' => [
+                     '*' => [
+                         'id',
+                         'recipient_id',
+                         'sender_id',
+                         'type',
+                         'is_read',
+                         'payload',
+                         'sender' => ['id', 'username', 'avatar_url'],
+                     ],
+                 ],
+             ]);
+    }
+
+    public function test_send_to_self_is_rejected_and_creates_no_notification()
+    {
+        $user = User::factory()->create();
+
+        $this->be($user, 'api');
+
+        $this->postJson('/api/friends/send', ['addressee_id' => $user->id])
+             ->assertStatus(422);
+
+        $this->assertDatabaseMissing('Notifications', [
+            'recipient_id' => $user->id,
+            'type'         => 'friend_request',
+        ]);
+    }
+
+    public function test_send_when_relationship_exists_is_rejected_and_creates_no_duplicate_notification()
+    {
+        $user      = User::factory()->create();
+        $addressee = User::factory()->create();
+
+        // A pending request already exists between the two users
+        $this->createFriendship(['requester_id' => $user->id, 'addressee_id' => $addressee->id]);
+
+        $this->be($user, 'api');
+
+        $this->postJson('/api/friends/send', ['addressee_id' => $addressee->id])
+             ->assertStatus(422);
+
+        $count = Notification::where('recipient_id', $addressee->id)
+            ->where('sender_id', $user->id)
+            ->where('type', 'friend_request')
+            ->count();
+
+        $this->assertSame(0, $count, 'No friend_request notification should be created when the request is rejected');
     }
 }

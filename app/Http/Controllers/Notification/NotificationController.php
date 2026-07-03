@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Notification\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class NotificationController extends Controller
 {
@@ -25,7 +26,7 @@ class NotificationController extends Controller
             ->where('recipient_id', $request->user()->id)
             ->firstOrFail();
 
-        $notification->update(['is_read' => true]);
+        $notification->update(['is_read' => DB::raw('true')]);
 
         return response()->json(['message' => 'Notification marked as read']);
     }
@@ -33,8 +34,8 @@ class NotificationController extends Controller
     public function markAllAsRead(Request $request): JsonResponse
     {
         Notification::where('recipient_id', $request->user()->id)
-            ->where('is_read', false)
-            ->update(['is_read' => true]);
+            ->whereRaw('is_read = false')
+            ->update(['is_read' => DB::raw('true')]);
 
         return response()->json(['message' => 'All notifications marked as read']);
     }
@@ -42,7 +43,7 @@ class NotificationController extends Controller
     public function unreadCount(Request $request): JsonResponse
     {
         $count = Notification::where('recipient_id', $request->user()->id)
-            ->where('is_read', false)
+            ->whereRaw('is_read = false')
             ->count();
 
         return response()->json(['count' => $count]);

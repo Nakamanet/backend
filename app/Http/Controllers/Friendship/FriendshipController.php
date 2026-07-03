@@ -5,8 +5,10 @@ namespace App\Http\Controllers\Friendship;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Friendship\SendFriendRequest;
 use App\Models\Friendship\Friendship;
+use App\Models\Notification\Notification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class FriendshipController extends Controller
 {
@@ -27,11 +29,26 @@ class FriendshipController extends Controller
             return response()->json(['message' => 'A relationship already exists with this user'], 422);
         }
 
-        $friendship = Friendship::create([
-            'requester_id' => $userId,
-            'addressee_id' => $addresseeId,
-            'status'       => 'pending',
-        ]);
+        $friendship = DB::transaction(function () use ($userId, $addresseeId) {
+            $friendship = Friendship::create([
+                'requester_id' => $userId,
+                'addressee_id' => $addresseeId,
+                'status'       => 'pending',
+            ]);
+
+            Notification::create([
+                'recipient_id' => $addresseeId,
+                'sender_id'    => $userId,
+                'type'         => 'friend_request',
+                // Raw boolean literal: PDO emulated prepares (Neon pooler) would
+                // otherwise inline PHP false as integer 0, rejected by the
+                // boolean "is_read" column.
+                'is_read'      => DB::raw('false'),
+                'payload'      => ['friendship_id' => $friendship->id],
+            ]);
+
+            return $friendship;
+        });
 
         return response()->json($friendship, 201);
     }
