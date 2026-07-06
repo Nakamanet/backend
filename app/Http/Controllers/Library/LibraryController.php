@@ -12,6 +12,23 @@ use Illuminate\Http\Request;
 
 class LibraryController extends Controller
 {
+    /**
+     * Normalize a boolean value to a Postgres-safe literal.
+     *
+     * The Neon/PgBouncer pooler forces PDO::ATTR_EMULATE_PREPARES, which inlines
+     * bindings as PHP-typed literals. A PHP int/bool is inlined as 0/1 (an integer
+     * literal Postgres refuses to cast into a boolean column), so any boolean written
+     * through the Query Builder must be passed as a 'true'/'false' string instead.
+     */
+    private function normalizeIsPrivate(array $data): array
+    {
+        if (array_key_exists('is_private', $data)) {
+            $data['is_private'] = filter_var($data['is_private'], FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
+        }
+
+        return $data;
+    }
+
     public function animeIndex(Request $request): JsonResponse
     {
         $library = UserAnimeLibrary::where('user_id', $request->user()->id)
@@ -26,7 +43,7 @@ class LibraryController extends Controller
         $validated = $request->validated();
         $userId = $request->user()->id;
         $conditions = ['user_id' => $userId, 'anime_id' => $validated['anime_id']];
-        $data = array_merge($validated, ['user_id' => $userId]);
+        $data = $this->normalizeIsPrivate(array_merge($validated, ['user_id' => $userId]));
 
         $affected = UserAnimeLibrary::where($conditions)->update($data);
 
@@ -60,7 +77,7 @@ class LibraryController extends Controller
         $validated = $request->validated();
         $userId = $request->user()->id;
         $conditions = ['user_id' => $userId, 'manga_id' => $validated['manga_id']];
-        $data = array_merge($validated, ['user_id' => $userId]);
+        $data = $this->normalizeIsPrivate(array_merge($validated, ['user_id' => $userId]));
 
         $affected = UserMangaLibrary::where($conditions)->update($data);
 
