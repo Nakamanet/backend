@@ -10,6 +10,9 @@ use App\Models\Library\UserMangaLibrary;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
+use App\Models\Friendship\Friendship;
+use Illuminate\Support\Facades\DB;
+
 class LibraryController extends Controller
 {
     public function animeIndex(Request $request): JsonResponse
@@ -100,5 +103,43 @@ class LibraryController extends Controller
         $entry->update($request->only(['status', 'progress', 'score', 'reread_count', 'is_private']));
 
         return response()->json($entry);
+    }
+
+    public function friendsExplore(Request $request): JsonResponse
+    {
+        $userId = $request->user()->id;
+
+        $friendIds = Friendship::where('status', 'accepted')
+            ->where(function ($q) use ($userId) {
+                $q->where('requester_id', $userId)
+                ->orWhere('addressee_id', $userId);
+            })
+            ->get()
+            ->map(fn ($f) => $f->requester_id === $userId ? $f->addressee_id : $f->requester_id)
+            ->unique()
+            ->values();
+
+        if ($friendIds->isEmpty()) {
+            return response()->json(['anime' => [], 'manga' => []]);
+        }
+
+        $animeExplore = UserAnimeLibrary::whereIn('user_id', $friendIds)
+            ->where('is_private', false)
+            ->select('anime_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
+            ->groupBy('anime_id')
+            ->orderByDesc('friends_count')
+            ->get();
+
+        $mangaExplore = UserMangaLibrary::whereIn('user_id', $friendIds)
+            ->where('is_private', false)
+            ->select('manga_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
+            ->groupBy('manga_id')
+            ->orderByDesc('friends_count')
+            ->get();
+
+        return response()->json([
+            'anime' => $animeExplore,
+            'manga' => $mangaExplore,
+        ]);
     }
 }

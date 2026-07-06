@@ -12,7 +12,7 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')
                 ->unique()
-                ->constrained('users')
+                ->constrained('Users')
                 ->cascadeOnDelete();
 
             $table->boolean('comment')->default(true);
