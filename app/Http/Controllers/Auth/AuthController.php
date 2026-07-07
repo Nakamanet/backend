@@ -8,40 +8,30 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use App\Http\Controllers\Controller;
 
+use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\LoginRequest;
+
 class AuthController extends Controller
 {
-    public function register(Request $request)
+    public function register(RegisterRequest $request)
     {
-        $request->validate([
-            'username' => 'required|string|max:50|unique:Users,username',
-            'email' => 'required|email|max:100|unique:Users,email',
-            'password' => 'required|string|min:8',
-            'birthdate' => 'required|date',
-        ]);
-
+        // $request->validated() gives only the validated fields
         $user = User::create([
-            'username' => $request->username,
-            'email' => $request->email,
+            'username'      => $request->username,
+            'email'         => $request->email,
             'password_hash' => Hash::make($request->password),
-            'birthdate' => $request->birthdate,
-            'role' => 'user',
+            'birthdate'     => $request->birthdate,
+            'localisation'  => $request->localisation,
+            'role'          => 'user',
         ]);
 
-        $token = $user->createToken('api_token')->plainTextToken;
+        $token = auth('api')->login($user);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ], 201);
+        return $this->respondWithToken($token, $user, 201);
     }
 
-    public function login(Request $request)
+    public function login(LoginRequest $request)
     {
-        $request->validate([
-            'email' => 'required|email',
-            'password' => 'required',
-        ]);
-
         $user = User::where('email', $request->email)->first();
 
         if (! $user || ! Hash::check($request->password, $user->password_hash)) {
@@ -50,25 +40,49 @@ class AuthController extends Controller
             ]);
         }
 
-        $token = $user->createToken('api_token')->plainTextToken;
+        $token = auth('api')->login($user);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token
-        ]);
+        return $this->respondWithToken($token, $user);
     }
 
-    public function logout(Request $request)
+    /**
+     * Logout by invalidating the JWT token.
+     */
+    public function logout()
     {
-        $request->user()->currentAccessToken()->delete();
+        auth('api')->logout();
 
-        return response()->json([
-            'message' => 'Logged out successfully'
-        ]);
+        return response()->json(['message' => 'Logged out successfully']);
     }
 
-    public function me(Request $request)
+    /**
+     * Return the authenticated user.
+     */
+    public function me()
     {
-        return response()->json($request->user());
+        return response()->json(auth('api')->user());
+    }
+
+    /**
+     * Refresh a JWT token.
+     */
+    public function refresh()
+    {
+        $token = auth('api')->refresh();
+
+        return $this->respondWithToken($token, auth('api')->user());
+    }
+
+    /**
+     * Shared token response format.
+     */
+    protected function respondWithToken(string $token, User $user, int $status = 200)
+    {
+        return response()->json([
+            'user'       => $user,
+            'token'      => $token,
+            'token_type' => 'Bearer',
+            'expires_in' => auth('api')->factory()->getTTL() * 60,
+        ], $status);
     }
 }
