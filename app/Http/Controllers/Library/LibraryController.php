@@ -122,7 +122,7 @@ class LibraryController extends Controller
         return response()->json($entry);
     }
 
-    public function friendsExplore(Request $request): JsonResponse
+   public function friendsExplore(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
 
@@ -141,14 +141,14 @@ class LibraryController extends Controller
         }
 
         $animeExplore = UserAnimeLibrary::whereIn('user_id', $friendIds)
-            ->where('is_private', false)
+            ->whereRaw('is_private = false')
             ->select('anime_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
             ->groupBy('anime_id')
             ->orderByDesc('friends_count')
             ->get();
 
         $mangaExplore = UserMangaLibrary::whereIn('user_id', $friendIds)
-            ->where('is_private', false)
+            ->whereRaw('is_private = false')
             ->select('manga_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
             ->groupBy('manga_id')
             ->orderByDesc('friends_count')
