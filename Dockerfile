@@ -16,8 +16,7 @@ RUN composer install --no-scripts --no-autoloader --no-interaction
 COPY . .
 RUN composer dump-autoload --optimize
 
-RUN addgroup -g 1000 www && adduser -G www -g www -s /bin/sh -D -u 1000 www \
-  && chown -R www:www /var/www/html
+RUN chown -R www-data:www-data /var/www/html
 
 COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
 COPY docker/supervisord.conf /etc/supervisord.conf
