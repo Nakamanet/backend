@@ -1,10 +1,9 @@
-#!/bin/sh
 FROM php:8.4-fpm-alpine
 
 RUN apk add --no-cache \
     bash git curl unzip icu-dev oniguruma-dev \
-    postgresql-dev \
-    libzip-dev \
+    postgresql-dev libzip-dev \
+    nginx supervisor \
   && docker-php-ext-install pdo pdo_pgsql intl mbstring zip opcache
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
@@ -15,18 +14,18 @@ COPY composer.json composer.lock ./
 RUN composer install --no-scripts --no-autoloader --no-interaction
 
 COPY . .
-
 RUN composer dump-autoload --optimize
 
-RUN addgroup -g 1000 www && adduser -G www -g www -s /bin/sh -D -u 1000 www
-RUN chown -R www:www /var/www/html
+RUN addgroup -g 1000 www && adduser -G www -g www -s /bin/sh -D -u 1000 www \
+  && chown -R www:www /var/www/html
 
-# Already correct in your Dockerfile — but the volume is the problem
+COPY docker/nginx/default.conf /etc/nginx/http.d/default.conf
+COPY docker/supervisord.conf /etc/supervisord.conf
+
 COPY entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 RUN chmod +x /usr/local/bin/docker-entrypoint.sh
 
-USER www
-
+EXPOSE 8080
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
-CMD ["php-fpm"]
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisord.conf"]
