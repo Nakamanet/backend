@@ -19,5 +19,6 @@ if [ -z "$(grep APP_KEY .env | cut -d '=' -f 2)" ]; then
 fi
 
 php artisan migrate --force
+php artisan db:seed --class=ForumDefaultPinsSeeder --force
 
 exec "$@"
