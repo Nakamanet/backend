@@ -11,6 +11,19 @@ use Illuminate\Http\Request;
 
 class PostController extends Controller
 {
+    /**
+     * Normalize a boolean value to a Postgres-safe literal.
+     *
+     * The Neon/PgBouncer pooler forces PDO::ATTR_EMULATE_PREPARES, which inlines
+     * bindings as PHP-typed literals. A PHP int/bool is inlined as 0/1 (an integer
+     * literal Postgres refuses to cast into a boolean column), so any boolean written
+     * or compared through the Query Builder must be passed as a 'true'/'false' string.
+     */
+    private function boolLiteral($value): string
+    {
+        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
+    }
+
     public function index(Request $request): JsonResponse
     {
         $userId = $request->user()?->id;
@@ -21,7 +34,7 @@ class PostController extends Controller
             ->when($request->user_id,  fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->anime_id, fn($q) => $q->where('related_anime_id', $request->anime_id))
             ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
-            ->when($request->has('is_spoiler'),  fn($q) => $q->where('is_spoiler', filter_var($request->is_spoiler, FILTER_VALIDATE_BOOLEAN)))
+            ->when($request->has('is_spoiler'),  fn($q) => $q->where('is_spoiler', $this->boolLiteral($request->is_spoiler)))
             ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
 
         match ($request->sort) {
@@ -47,8 +60,14 @@ class PostController extends Controller
 
     public function store(StorePostRequest $request): JsonResponse
     {
+        $data = $request->validated();
+
+        if (array_key_exists('is_spoiler', $data)) {
+            $data['is_spoiler'] = $this->boolLiteral($data['is_spoiler']);
+        }
+
         $post = Post::create([
-            ...$request->validated(),
+            ...$data,
             'user_id' => $request->user()->id,
         ]);
 
@@ -63,7 +82,13 @@ class PostController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $post->update($request->validated());
+        $data = $request->validated();
+
+        if (array_key_exists('is_spoiler', $data)) {
+            $data['is_spoiler'] = $this->boolLiteral($data['is_spoiler']);
+        }
+
+        $post->update($data);
 
         return response()->json($post);
     }
