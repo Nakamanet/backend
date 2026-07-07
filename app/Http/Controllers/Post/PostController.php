@@ -9,6 +9,7 @@ use App\Models\Post\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Friendship\Friendship;
+use App\Models\Comment\Comment;
 
 class PostController extends Controller
 {
@@ -262,5 +263,42 @@ class PostController extends Controller
         $request->user()->archivedPosts()->detach($id);
 
         return response()->json(['message' => 'Restored to feed', 'hidden' => false]);
+    }
+    public function storeComment(Request $request, int $id): JsonResponse
+    {
+        $post = Post::findOrFail($id);
+
+        $validated = $request->validate([
+            'content' => 'required|string|max:1000',
+            'parent_id' => 'nullable|integer|exists:Comments,id',
+            'is_spoiler' => 'sometimes|boolean',
+        ]);
+
+        if (array_key_exists('is_spoiler', $validated)) {
+            $validated['is_spoiler'] = $this->boolLiteral($validated['is_spoiler']);
+        }
+
+        $comment = Comment::create([
+            ...$validated,
+            'user_id' => $request->user()->id,
+            'post_id' => $post->id,
+        ]);
+
+        $comment->load('user');
+
+        return response()->json($comment, 201);
+    }
+
+    public function destroyComment(Request $request, int $commentId): JsonResponse
+    {
+        $comment = Comment::findOrFail($commentId);
+
+        if ($comment->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json(['message' => 'Comment deleted']);
     }
 }
