@@ -8,6 +8,7 @@ use App\Http\Requests\Post\UpdatePostRequest;
 use App\Models\Post\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\Friendship\Friendship;
 
 class PostController extends Controller
 {
@@ -36,6 +37,24 @@ class PostController extends Controller
             ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
             ->when($request->has('is_spoiler'),  fn($q) => $q->where('is_spoiler', $this->boolLiteral($request->is_spoiler)))
             ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
+
+        if ($request->boolean('friends_only')) {
+            if (!$userId) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            $friendIds = \App\Models\Friendship\Friendship::whereRaw("status = 'accepted'")
+                ->where(function ($q) use ($userId) {
+                    $q->where('requester_id', $userId)
+                    ->orWhere('addressee_id', $userId);
+                })
+                ->get()
+                ->map(fn ($f) => $f->requester_id === $userId ? $f->addressee_id : $f->requester_id)
+                ->unique()
+                ->values();
+
+            $query->whereIn('user_id', $friendIds);
+        }
 
         match ($request->sort) {
             'oldest'         => $query->oldest('created_at'),
