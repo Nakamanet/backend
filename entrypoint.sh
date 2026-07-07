@@ -1,16 +1,23 @@
 #!/bin/sh
-# Installer les dépendances si le dossier vendor est vide
+set -e
+
+# Wait for Postgres to be ready
+echo "Waiting for database..."
+until php -r "new PDO('pgsql:host=${DB_HOST};port=${DB_PORT};dbname=${DB_DATABASE}', '${DB_USERNAME}', '${DB_PASSWORD}');" 2>/dev/null; do
+  echo "DB not ready, retrying in 2s..."
+  sleep 2
+done
+echo "Database is ready."
+php artisan config:clear
+
 if [ ! -d "vendor" ]; then
     composer install --no-interaction --optimize-autoloader
 fi
 
-# Générer la clé si elle manque dans le .env
 if [ -z "$(grep APP_KEY .env | cut -d '=' -f 2)" ]; then
     php artisan key:generate
 fi
 
-# Lancer les migrations
 php artisan migrate --force
 
-# Lancer PHP-FPM (la commande par défaut de l'image)
-exec php-fpm
+exec "$@"

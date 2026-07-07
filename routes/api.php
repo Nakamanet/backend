@@ -1,14 +1,11 @@
 <?php
 
-
-use App\Http\Controllers\Auth\AuthController;
-
-Route::prefix('auth')->group(function () {
-    Route::post('/register', [AuthController::class, 'register']);
-    Route::post('/login', [AuthController::class, 'login']);
-
-    Route::middleware('auth:sanctum')->group(function () {
-        Route::post('/logout', [AuthController::class, 'logout']);
-        Route::get('/me', [AuthController::class, 'me']);
-    });
-});
+require __DIR__ . '/api/auth.php';
+require __DIR__ . '/api/users.php';
+require __DIR__ . '/api/posts.php';
+require __DIR__ . '/api/likes.php';
+require __DIR__ . '/api/forum.php';
+require __DIR__ . '/api/friendships.php';
+require __DIR__ . '/api/upload.php';
+require __DIR__ . '/api/library.php';
+require __DIR__ . '/api/notifications.php';
