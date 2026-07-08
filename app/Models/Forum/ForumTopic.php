@@ -5,6 +5,7 @@ namespace App\Models\Forum;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use App\Models\Forum\ForumUserPin;
 
 class ForumTopic extends Model
 {
@@ -21,6 +22,7 @@ class ForumTopic extends Model
         'related_manga_id',
         'is_pinned',
         'is_locked',
+        'is_archived',
         'views_count',
         'votes_count',
     ];
@@ -28,6 +30,7 @@ class ForumTopic extends Model
     protected $casts = [
         'is_pinned'    => 'boolean',
         'is_locked'    => 'boolean',
+        'is_archived'  => 'boolean',
         'views_count'  => 'integer',
         'votes_count'  => 'integer',
         'created_at'   => 'datetime',
@@ -42,6 +45,11 @@ class ForumTopic extends Model
     public function replies()
     {
         return $this->hasMany(ForumReply::class, 'topic_id');
+    }
+
+    public function userPins()
+    {
+        return $this->hasMany(ForumUserPin::class, 'topic_id');
     }
 
 

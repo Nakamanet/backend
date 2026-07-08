@@ -8,6 +8,8 @@ use App\Http\Requests\Post\UpdatePostRequest;
 use App\Models\Post\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use App\Models\Friendship\Friendship;
+use App\Models\Comment\Comment;
 
 class PostController extends Controller
 {
@@ -36,6 +38,24 @@ class PostController extends Controller
             ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
             ->when($request->has('is_spoiler'),  fn($q) => $q->where('is_spoiler', $this->boolLiteral($request->is_spoiler)))
             ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
+
+        if ($request->boolean('friends_only')) {
+            if (!$userId) {
+                return response()->json(['message' => 'Unauthorized'], 401);
+            }
+
+            $friendIds = \App\Models\Friendship\Friendship::whereRaw("status = 'accepted'")
+                ->where(function ($q) use ($userId) {
+                    $q->where('requester_id', $userId)
+                    ->orWhere('addressee_id', $userId);
+                })
+                ->get()
+                ->map(fn ($f) => $f->requester_id === $userId ? $f->addressee_id : $f->requester_id)
+                ->unique()
+                ->values();
+
+            $query->whereIn('user_id', $friendIds);
+        }
 
         match ($request->sort) {
             'oldest'         => $query->oldest('created_at'),
@@ -243,5 +263,42 @@ class PostController extends Controller
         $request->user()->archivedPosts()->detach($id);
 
         return response()->json(['message' => 'Restored to feed', 'hidden' => false]);
+    }
+    public function storeComment(Request $request, int $id): JsonResponse
+    {
+        $post = Post::findOrFail($id);
+
+        $validated = $request->validate([
+            'content' => 'required|string|max:1000',
+            'parent_id' => 'nullable|integer|exists:Comments,id',
+            'is_spoiler' => 'sometimes|boolean',
+        ]);
+
+        if (array_key_exists('is_spoiler', $validated)) {
+            $validated['is_spoiler'] = $this->boolLiteral($validated['is_spoiler']);
+        }
+
+        $comment = Comment::create([
+            ...$validated,
+            'user_id' => $request->user()->id,
+            'post_id' => $post->id,
+        ]);
+
+        $comment->load('user');
+
+        return response()->json($comment, 201);
+    }
+
+    public function destroyComment(Request $request, int $commentId): JsonResponse
+    {
+        $comment = Comment::findOrFail($commentId);
+
+        if ($comment->user_id !== $request->user()->id) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $comment->delete();
+
+        return response()->json(['message' => 'Comment deleted']);
     }
 }

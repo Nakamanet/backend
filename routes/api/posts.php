@@ -17,6 +17,9 @@ Route::prefix('posts')->group(function () {
 
     Route::get('/{id}',          [PostController::class, 'show'])->whereNumber('id');
     Route::get('/{id}/comments', [PostController::class, 'comments'])->whereNumber('id');
+   
+    Route::post('/{id}/comments', [PostController::class, 'storeComment'])->whereNumber('id');
+    Route::delete('/comments/{commentId}', [PostController::class, 'destroyComment'])->whereNumber('commentId');
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {
         Route::patch('/{id}',  [PostController::class, 'update'])->whereNumber('id');

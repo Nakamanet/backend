@@ -122,7 +122,7 @@ class LibraryController extends Controller
         return response()->json($entry);
     }
 
-    public function friendsExplore(Request $request): JsonResponse
+   public function friendsExplore(Request $request): JsonResponse
     {
         $userId = $request->user()->id;
 
@@ -141,14 +141,14 @@ class LibraryController extends Controller
         }
 
         $animeExplore = UserAnimeLibrary::whereIn('user_id', $friendIds)
-            ->where('is_private', false)
+            ->whereRaw('is_private = false')
             ->select('anime_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
             ->groupBy('anime_id')
             ->orderByDesc('friends_count')
             ->get();
 
         $mangaExplore = UserMangaLibrary::whereIn('user_id', $friendIds)
-            ->where('is_private', false)
+            ->whereRaw('is_private = false')
             ->select('manga_id', DB::raw('COUNT(DISTINCT user_id) as friends_count'))
             ->groupBy('manga_id')
             ->orderByDesc('friends_count')
@@ -158,5 +158,29 @@ class LibraryController extends Controller
             'anime' => $animeExplore,
             'manga' => $mangaExplore,
         ]);
+    }
+    // LibraryController.php
+    public function topAnime(): JsonResponse
+    {
+        $top = UserAnimeLibrary::whereRaw('is_private = false')
+            ->select('anime_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('anime_id')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        return response()->json($top);
+    }
+
+    public function topManga(): JsonResponse
+    {
+        $top = UserMangaLibrary::whereRaw('is_private = false')
+            ->select('manga_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('manga_id')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        return response()->json($top);
     }
 }

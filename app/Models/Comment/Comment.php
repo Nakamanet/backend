@@ -12,6 +12,7 @@ class Comment extends Model
     use HasFactory;
 
     protected $table = 'Comments';
+    public $timestamps = false; // ← added: table has no created_at/updated_at columns
 
     protected $fillable = [
         'user_id',
@@ -23,8 +24,7 @@ class Comment extends Model
 
     protected $casts = [
         'is_spoiler' => 'boolean',
-        'created_at' => 'datetime',
-        'updated_at' => 'datetime',
+        // removed created_at/updated_at casts — columns don't exist
     ];
 
     public function user()
