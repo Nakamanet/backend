@@ -159,4 +159,28 @@ class LibraryController extends Controller
             'manga' => $mangaExplore,
         ]);
     }
+    // LibraryController.php
+    public function topAnime(): JsonResponse
+    {
+        $top = UserAnimeLibrary::whereRaw('is_private = false')
+            ->select('anime_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('anime_id')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        return response()->json($top);
+    }
+
+    public function topManga(): JsonResponse
+    {
+        $top = UserMangaLibrary::whereRaw('is_private = false')
+            ->select('manga_id', DB::raw('COUNT(*) as count'))
+            ->groupBy('manga_id')
+            ->orderByDesc('count')
+            ->limit(10)
+            ->get();
+
+        return response()->json($top);
+    }
 }

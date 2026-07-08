@@ -12,6 +12,9 @@ Route::middleware(['auth:api', 'user.active'])->prefix('library')->group(functio
     Route::post('/manga', [LibraryController::class, 'mangaStore']);
     Route::patch('/manga/{manga_id}', [LibraryController::class, 'mangaUpdate']);
     Route::delete('/manga/{manga_id}', [LibraryController::class, 'mangaDestroy']);
-        // routes/api/library.php
+  
+    Route::get('/top/anime', [LibraryController::class, 'topAnime']);
+    Route::get('/top/manga', [LibraryController::class, 'topManga']);
+
     Route::get('/explore/friends', [LibraryController::class, 'friendsExplore']);
 });
