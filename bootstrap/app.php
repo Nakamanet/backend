@@ -6,7 +6,6 @@ use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
 
-
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
         web: __DIR__.'/../routes/web.php',
@@ -15,29 +14,23 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->prepend(\Illuminate\Http\Middleware\HandleCors::class);
+
         $middleware->alias([
             'user.active' => \App\Http\Middleware\EnsureUserIsActive::class,
+            'admin' => \App\Http\Middleware\EnsureUserIsAdmin::class,
         ]);
 
-        // Never redirect unauthenticated API requests to a `login` route (which
-        // does not exist -> 500). Returning null lets the AuthenticationException
-        // reach the handler and render as a clean 401 JSON.
         $middleware->redirectGuestsTo(fn (Request $request) => $request->is('api/*') ? null : '/login');
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        // Always render API errors as JSON.
         $exceptions->shouldRenderJsonWhen(function ($request, $throwable) {
             return $request->is('api/*') || $request->expectsJson();
         });
 
-        // Unauthenticated API requests must return 401 JSON, not a redirect to
-        // the non-existent `login` route (which yields a 500).
         $exceptions->render(function (AuthenticationException $e, Request $request) {
             if ($request->is('api/*')) {
                 return response()->json(['message' => 'Unauthenticated.'], 401);
             }
         });
     })->create();
-
-
-    

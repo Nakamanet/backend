@@ -46,6 +46,11 @@ class User extends Authenticatable implements JWTSubject
         'is_moderator' => 'boolean',
     ];
 
+    public function isAdmin(): bool
+    {
+        return $this->is_admin === true;
+    }
+
     public function getJWTIdentifier()
     {
         return $this->getKey();
