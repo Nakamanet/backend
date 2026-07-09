@@ -3,7 +3,6 @@
 use App\Http\Controllers\Friendship\FriendshipController;
 
 Route::middleware(['auth:api', 'user.active'])->prefix('friends')->group(function () {
-    Route::get('/', [FriendshipController::class, 'index']);
     Route::get('/pending', [FriendshipController::class, 'pending']);
     Route::get('/sent', [FriendshipController::class, 'sent']);
     Route::get('/blocked', [FriendshipController::class, 'blocked']);

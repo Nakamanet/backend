@@ -7,7 +7,6 @@ Route::prefix('posts')->group(function () {
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {
         // Personal collections — must come BEFORE /{id} to avoid route collision
-        Route::get('/me/liked',              [PostController::class, 'likedPosts']);
         Route::get('/me/saved',              [PostController::class, 'savedPosts']);
         Route::get('/me/archived',           [PostController::class, 'archivedOwnPosts']);
         Route::get('/me/archived-from-feed', [PostController::class, 'archivedFromFeed']);

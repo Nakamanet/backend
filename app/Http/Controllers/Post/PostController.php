@@ -151,14 +151,20 @@ class PostController extends Controller
 
     // ===== New endpoints =====
 
-    public function likedPosts(Request $request): JsonResponse
+    public function userLikedPosts(Request $request, int $id): JsonResponse
     {
-        $userId = $request->user()->id;
+        $target = \App\Models\User::findOrFail($id);
+
+        if (! $target->isVisibleTo($request->user())) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $viewerId = $request->user()->id;
 
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
-            ->visibleTo($userId)
-            ->whereHas('likes', fn($q) => $q->where('user_id', $userId)->where('is_liked', true))
+            ->visibleTo($viewerId)
+            ->whereHas('likes', fn($q) => $q->where('user_id', $target->id)->where('is_liked', true))
             ->latest('created_at')
             ->paginate(20);
 

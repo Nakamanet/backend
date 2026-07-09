@@ -88,4 +88,32 @@ class User extends Authenticatable implements JWTSubject
         return $this->belongsToMany(\App\Models\Post\Post::class, 'Archived_Posts', 'user_id', 'post_id')
             ->withTimestamps();
     }
+
+    /**
+     * Whether the given viewer is allowed to see this user's private social data
+     * (liked posts, friends list, …), based on `profile_visibility`.
+     *
+     * Mirrors the access rules of UserController::profile:
+     *  - own data is always visible;
+     *  - `public`       → visible to everyone (incl. guests);
+     *  - `friends_only` → visible only to confirmed friends;
+     *  - `private`      → visible to no one but the owner.
+     */
+    public function isVisibleTo(?self $viewer): bool
+    {
+        if ($viewer && $viewer->id === $this->id) {
+            return true;
+        }
+
+        return match ($this->profile_visibility) {
+            'private'      => false,
+            'friends_only' => $viewer
+                ? \App\Models\Friendship\Friendship::where('status', 'accepted')
+                    ->where(fn($q) => $q->where('requester_id', $viewer->id)->where('addressee_id', $this->id))
+                    ->orWhere(fn($q) => $q->where('requester_id', $this->id)->where('addressee_id', $viewer->id))
+                    ->exists()
+                : false,
+            default        => true, // 'public' (ou valeur nulle)
+        };
+    }
 }

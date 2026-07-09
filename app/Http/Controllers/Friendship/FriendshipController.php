@@ -126,13 +126,17 @@ class FriendshipController extends Controller
         return response()->json(['message' => 'User unblocked']);
     }
 
-    public function index(Request $request): JsonResponse
+    public function userFriends(Request $request, int $id): JsonResponse
     {
-        $userId = $request->user()->id;
+        $target = \App\Models\User::findOrFail($id);
+
+        if (! $target->isVisibleTo($request->user())) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
 
         $friends = Friendship::with(['requester', 'addressee'])
             ->where('status', 'accepted')
-            ->where(fn($q) => $q->where('requester_id', $userId)->orWhere('addressee_id', $userId))
+            ->where(fn($q) => $q->where('requester_id', $target->id)->orWhere('addressee_id', $target->id))
             ->get();
 
         return response()->json($friends);
