@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
+use App\Rules\GoogleRecaptchaV3;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest
@@ -17,17 +18,26 @@ class RegisterRequest extends FormRequest
             'username'  => 'required|string|max:50|unique:Users,username',
             'email'     => 'required|email|max:100|unique:Users,email',
             'password'  => 'required|string|min:8',
-            'birthdate' => 'required|date',
-            'localisation' => 'nullable|string|max:100',
+            'birthdate' => [
+                'required',
+                'date',
+                'before_or_equal:' . now()->subYears(15)->toDateString(),
+                'after:' . now()->subYears(120)->toDateString(),
+            ],
+            'localisation'    => 'nullable|string|max:100',
+            'recaptcha_token' => ['required', 'string', new GoogleRecaptchaV3('register')],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'username.unique' => 'This username is already taken.',
-            'email.unique'    => 'An account with this email already exists.',
-            'password.min'    => 'Password must be at least 8 characters.',
+            'username.unique'           => 'This username is already taken.',
+            'email.unique'              => 'An account with this email already exists.',
+            'password.min'              => 'Password must be at least 8 characters.',
+            'birthdate.before_or_equal' => 'You must be at least 15 years old to register.',
+            'birthdate.after'           => 'Please enter a valid birthdate.',
+            'recaptcha_token.required'  => 'reCAPTCHA verification is required.',
         ];
     }
 }
