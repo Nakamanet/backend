@@ -32,12 +32,28 @@ class PostController extends Controller
 
         $query = Post::withCount(['likes', 'comments'])
             ->with('user')
+            ->withViewerFlags($userId)
             ->visibleTo($userId)
             ->when($request->user_id,  fn($q) => $q->where('user_id', $request->user_id))
             ->when($request->anime_id, fn($q) => $q->where('related_anime_id', $request->anime_id))
             ->when($request->manga_id, fn($q) => $q->where('related_manga_id', $request->manga_id))
             ->when($request->has('is_spoiler'),  fn($q) => $q->where('is_spoiler', $this->boolLiteral($request->is_spoiler)))
             ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
+
+        // Exclude posts from users in a blocked relationship with the caller (both directions).
+        if ($userId) {
+            $blockedIds = \App\Models\Friendship\Friendship::whereRaw("status = 'blocked'")
+                ->where(function ($q) use ($userId) {
+                    $q->where('requester_id', $userId)
+                    ->orWhere('addressee_id', $userId);
+                })
+                ->get()
+                ->map(fn ($f) => $f->requester_id === $userId ? $f->addressee_id : $f->requester_id)
+                ->unique()
+                ->values();
+
+            $query->whereNotIn('user_id', $blockedIds);
+        }
 
         if ($request->boolean('friends_only')) {
             if (!$userId) {
@@ -71,9 +87,11 @@ class PostController extends Controller
         return response()->json($query->paginate(20));
     }
 
-    public function show(int $id): JsonResponse
+    public function show(Request $request, int $id): JsonResponse
     {
-        $post = Post::with(['user', 'comments.user'])->findOrFail($id);
+        $post = Post::with(['user', 'comments.user'])
+            ->withViewerFlags($request->user()?->id)
+            ->findOrFail($id);
 
         return response()->json($post);
     }
@@ -135,16 +153,12 @@ class PostController extends Controller
 
     public function userPosts(Request $request, int $id): JsonResponse
     {
-        $isOwnProfile = $request->user()?->id === $id;
-
+        // Archived posts are excluded here; they have their own tab (archivedOwnPosts).
         $query = Post::withCount(['likes', 'comments'])
             ->with('user')
-            ->where('user_id', $id);
-
-        // Only show archived posts on the owner's own profile view
-        if (!$isOwnProfile) {
-            $query->whereNull('archived_at');
-        }
+            ->withViewerFlags($request->user()?->id)
+            ->where('user_id', $id)
+            ->whereNull('archived_at');
 
         return response()->json($query->latest('created_at')->paginate(20));
     }
@@ -163,8 +177,9 @@ class PostController extends Controller
 
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
+            ->withViewerFlags($viewerId)
             ->visibleTo($viewerId)
-            ->whereHas('likes', fn($q) => $q->where('user_id', $target->id)->where('is_liked', true))
+            ->whereHas('likes', fn($q) => $q->where('user_id', $target->id))
             ->latest('created_at')
             ->paginate(20);
 
@@ -177,6 +192,7 @@ class PostController extends Controller
 
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
+            ->withViewerFlags($userId)
             ->visibleTo($userId)
             ->whereHas('savedBy', fn($q) => $q->where('user_id', $userId))
             ->latest('created_at')
@@ -188,6 +204,8 @@ class PostController extends Controller
     public function archivedOwnPosts(Request $request): JsonResponse
     {
         $posts = Post::withCount(['likes', 'comments'])
+            ->with('user')
+            ->withViewerFlags($request->user()->id)
             ->where('user_id', $request->user()->id)
             ->whereNotNull('archived_at')
             ->latest('archived_at')
@@ -202,6 +220,7 @@ class PostController extends Controller
 
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
+            ->withViewerFlags($userId)
             ->whereHas('archivedBy', fn($q) => $q->where('user_id', $userId))
             ->latest('created_at')
             ->paginate(20);

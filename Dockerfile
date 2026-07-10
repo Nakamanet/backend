@@ -1,6 +1,6 @@
-FROM php:8.4-fpm-alpine
+FROM php:8.4-fpm-alpine3.24
 
-RUN apk add --no-cache \
+RUN apk add --no-cache --upgrade \
     bash git curl unzip icu-dev oniguruma-dev \
     postgresql-dev libzip-dev \
     nginx supervisor \
