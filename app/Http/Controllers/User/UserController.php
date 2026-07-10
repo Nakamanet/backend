@@ -21,6 +21,9 @@ class UserController extends Controller
             ->where(fn($q) => $q->where('requester_id', $target->id)->orWhere('addressee_id', $target->id))
             ->count();
         $libraryCount = $target->animeLibrary()->count() + $target->mangaLibrary()->count();
+        $topicsCount  = \App\Models\Forum\ForumTopic::where('user_id', $target->id)
+            ->where('is_archived', false)
+            ->count();
 
         $friendshipStatus = 'none';
         $friendshipId     = null;
@@ -58,6 +61,7 @@ class UserController extends Controller
             'posts_count'        => $postsCount,
             'friends_count'      => $friendsCount,
             'library_count'      => $libraryCount,
+            'topics_count'       => $topicsCount,
             'friendship_status'  => $friendshipStatus,
             'friendship_id'      => $friendshipId,
         ];

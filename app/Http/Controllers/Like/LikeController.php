@@ -30,7 +30,6 @@ class LikeController extends Controller
             'user_id'    => $userId,
             'post_id'    => $postId,
             'comment_id' => $commentId,
-            'is_liked'   => true,
         ]);
 
         return response()->json(['message' => 'Liked', 'liked' => true], 201);

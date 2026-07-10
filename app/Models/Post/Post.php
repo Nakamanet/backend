@@ -69,6 +69,20 @@ class Post extends Model
         return $query;
     }
 
+    /**
+     * Adds boolean flags telling whether the given viewer liked / saved each post.
+     * Uses 0 as a no-match id for guests so the flags come back false.
+     */
+    public function scopeWithViewerFlags($query, ?int $viewerId)
+    {
+        $vid = $viewerId ?? 0;
+
+        return $query->withExists([
+            'likes as user_has_liked'   => fn($q) => $q->where('user_id', $vid),
+            'savedBy as user_has_saved' => fn($q) => $q->where('user_id', $vid),
+        ]);
+    }
+
     protected static function newFactory()
     {
         return \Database\Factories\PostFactory::new();
