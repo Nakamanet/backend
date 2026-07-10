@@ -1,0 +1,24 @@
+version: 2
+updates:
+  # Garde les GitHub Actions pinnées par SHA à jour (met à jour SHA + commentaire).
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns:
+          - "*"
+
+  # Dépendances PHP (composer.lock). Patch/minor groupés pour limiter le bruit ;
+  # les majors restent en PR séparées (risque de breaking change).
+  - package-ecosystem: "composer"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 5
+    groups:
+      composer-minor-patch:
+        update-types:
+          - "minor"
+          - "patch"
