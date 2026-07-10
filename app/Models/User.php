@@ -58,7 +58,9 @@ class User extends Authenticatable implements JWTSubject
 
     public function getJWTCustomClaims()
     {
-        return [];
+        return [
+            'is_admin' => (bool) $this->is_admin,
+        ];
     }
 
     public function posts()
