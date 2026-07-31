@@ -230,6 +230,51 @@ class BlockingTest extends TestCase
     }
 
     // -------------------------------------------------------------------------
+    // Personal collections — blocking applies retroactively
+    // -------------------------------------------------------------------------
+
+    public function test_saved_posts_hide_a_post_saved_before_the_block()
+    {
+        $caller = User::factory()->create();
+        $author = User::factory()->create();
+        $post   = Post::factory()->create(['user_id' => $author->id]);
+
+        $caller->savedPosts()->attach($post->id);
+        $this->block($caller, $author);
+
+        $this->actingAs($caller)->getJson('/api/posts/me/saved')
+             ->assertStatus(200)
+             ->assertJsonMissing(['id' => $post->id]);
+    }
+
+    public function test_saved_posts_still_list_unrelated_authors()
+    {
+        $caller = User::factory()->create();
+        $author = User::factory()->create();
+        $post   = Post::factory()->create(['user_id' => $author->id]);
+
+        $caller->savedPosts()->attach($post->id);
+
+        $this->actingAs($caller)->getJson('/api/posts/me/saved')
+             ->assertStatus(200)
+             ->assertJsonFragment(['id' => $post->id]);
+    }
+
+    public function test_feed_hidden_posts_exclude_blocked_authors()
+    {
+        $caller = User::factory()->create();
+        $author = User::factory()->create();
+        $post   = Post::factory()->create(['user_id' => $author->id]);
+
+        $caller->archivedPosts()->attach($post->id);
+        $this->block($author, $caller);
+
+        $this->actingAs($caller)->getJson('/api/posts/me/archived-from-feed')
+             ->assertStatus(200)
+             ->assertJsonMissing(['id' => $post->id]);
+    }
+
+    // -------------------------------------------------------------------------
     // Profile access
     // -------------------------------------------------------------------------
 

@@ -263,9 +263,14 @@ class PostController extends Controller
             ->with('user')
             ->withViewerFlags($userId)
             ->visibleTo($userId)
+            // A post saved before the block must disappear too: the rule is
+            // mutual invisibility, not "invisible from now on".
+            ->whereNotIn('user_id', Friendship::blockedUserIdsFor($userId))
             ->whereHas('savedBy', fn($q) => $q->where('user_id', $userId))
             ->latest('created_at')
             ->paginate(20);
+
+        $this->attachAuthorFriendship($posts->items(), $userId);
 
         return response()->json($posts);
     }
@@ -290,9 +295,12 @@ class PostController extends Controller
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
             ->withViewerFlags($userId)
+            ->whereNotIn('user_id', Friendship::blockedUserIdsFor($userId))
             ->whereHas('archivedBy', fn($q) => $q->where('user_id', $userId))
             ->latest('created_at')
             ->paginate(20);
+
+        $this->attachAuthorFriendship($posts->items(), $userId);
 
         return response()->json($posts);
     }

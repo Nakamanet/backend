@@ -12,53 +12,63 @@ class AuthTest extends TestCase
     use DatabaseTransactions;
 
     /**
-     * Registration is guarded by GoogleRecaptchaV3, which calls Google's API.
+     * Registration is guarded by CloudflareTurnstile, which calls Cloudflare's API.
      * Fake the HTTP round-trip rather than weakening the rule for the test env:
      * the rule must stay fail-closed in every environment.
      */
-    private function fakeRecaptcha(float $score = 0.9, string $action = 'register'): void
+    private function fakeTurnstile(bool $success = true): void
     {
         Http::fake([
-            'www.google.com/recaptcha/*' => Http::response([
-                'success' => true,
-                'action'  => $action,
-                'score'   => $score,
-            ]),
+            'challenges.cloudflare.com/*' => Http::response(['success' => $success]),
         ]);
+    }
+
+    private function registrationPayload(array $overrides = []): array
+    {
+        return array_merge([
+            'username'        => fake()->unique()->userName(),
+            'email'           => fake()->unique()->safeEmail(),
+            'password'        => 'password123',
+            'birthdate'       => '2000-01-01',
+            'turnstile_token' => 'test-token',
+        ], $overrides);
     }
 
     public function test_user_can_register()
     {
-        $this->fakeRecaptcha();
+        $this->fakeTurnstile();
 
-        $response = $this->postJson('/api/auth/register', [
-            'username'              => fake()->unique()->userName(),
-            'email'                 => fake()->unique()->safeEmail(),
-            'password'              => 'password123',
-            'password_confirmation' => 'password123',
-            'birthdate'             => '2000-01-01',
-            'recaptcha_token'       => 'test-token',
-        ]);
-
-        $response->assertStatus(201)
-                 ->assertJsonStructure(['token']);
+        $this->postJson('/api/auth/register', $this->registrationPayload())
+             ->assertStatus(201)
+             ->assertJsonStructure(['token']);
     }
 
-    public function test_registration_is_rejected_when_recaptcha_score_is_too_low()
+    public function test_registration_is_rejected_when_turnstile_fails()
     {
-        $this->fakeRecaptcha(score: 0.1);
+        $this->fakeTurnstile(success: false);
 
-        $response = $this->postJson('/api/auth/register', [
-            'username'              => fake()->unique()->userName(),
-            'email'                 => fake()->unique()->safeEmail(),
-            'password'              => 'password123',
-            'password_confirmation' => 'password123',
-            'birthdate'             => '2000-01-01',
-            'recaptcha_token'       => 'test-token',
-        ]);
+        $this->postJson('/api/auth/register', $this->registrationPayload())
+             ->assertStatus(422)
+             ->assertJsonValidationErrors('turnstile_token');
+    }
 
-        $response->assertStatus(422)
-                 ->assertJsonValidationErrors('recaptcha_token');
+    public function test_registration_is_rejected_without_a_turnstile_token()
+    {
+        $this->fakeTurnstile();
+
+        $this->postJson('/api/auth/register', $this->registrationPayload(['turnstile_token' => null]))
+             ->assertStatus(422)
+             ->assertJsonValidationErrors('turnstile_token');
+    }
+
+    public function test_registration_is_rejected_under_fifteen_years_old()
+    {
+        $this->fakeTurnstile();
+
+        $this->postJson('/api/auth/register', $this->registrationPayload([
+            'birthdate' => now()->subYears(10)->toDateString(),
+        ]))->assertStatus(422)
+           ->assertJsonValidationErrors('birthdate');
     }
 
     public function test_user_can_login()
