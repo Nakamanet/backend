@@ -6,16 +6,11 @@ use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Support\Facades\Http;
 
-class GoogleRecaptchaV3 implements ValidationRule
+class CloudflareTurnstile implements ValidationRule
 {
-    private const VERIFY_URL = 'https://www.google.com/recaptcha/api/siteverify';
-    private const MINIMUM_SCORE = 0.5;
-    private const VERIFICATION_FAILED_MESSAGE = 'reCAPTCHA verification failed.';
-    private const UNAVAILABLE_MESSAGE = 'Unable to verify reCAPTCHA at this time. Please try again.';
-
-    public function __construct(private readonly string $action)
-    {
-    }
+    private const VERIFY_URL = 'https://challenges.cloudflare.com/turnstile/v0/siteverify';
+    private const VERIFICATION_FAILED_MESSAGE = 'Turnstile verification failed.';
+    private const UNAVAILABLE_MESSAGE = 'Unable to verify Turnstile at this time. Please try again.';
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -25,11 +20,7 @@ class GoogleRecaptchaV3 implements ValidationRule
             return;
         }
 
-        $isValid = ($body['success'] ?? false)
-            && ($body['action'] ?? null) === $this->action
-            && ($body['score'] ?? 0) >= self::MINIMUM_SCORE;
-
-        if (! $isValid) {
+        if (! ($body['success'] ?? false)) {
             $fail(self::VERIFICATION_FAILED_MESSAGE);
         }
     }
@@ -38,7 +29,7 @@ class GoogleRecaptchaV3 implements ValidationRule
     {
         try {
             $response = Http::asForm()->timeout(5)->post(self::VERIFY_URL, [
-                'secret'   => config('services.recaptcha.secret'),
+                'secret'   => config('services.turnstile.secret'),
                 'response' => $token,
                 'remoteip' => request()->ip(),
             ]);

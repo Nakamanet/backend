@@ -35,8 +35,8 @@ return [
         ],
     ],
 
-    'recaptcha' => [
-        'secret' => env('RECAPTCHA_SECRET_KEY'),
+    'turnstile' => [
+        'secret' => env('TURNSTILE_SECRET_KEY'),
     ],
 
 ];

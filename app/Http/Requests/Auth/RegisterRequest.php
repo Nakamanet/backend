@@ -2,7 +2,7 @@
 
 namespace App\Http\Requests\Auth;
 
-use App\Rules\GoogleRecaptchaV3;
+use App\Rules\CloudflareTurnstile;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterRequest extends FormRequest
@@ -25,7 +25,7 @@ class RegisterRequest extends FormRequest
                 'after:' . now()->subYears(120)->toDateString(),
             ],
             'localisation'    => 'nullable|string|max:100',
-            'recaptcha_token' => ['required', 'string', new GoogleRecaptchaV3('register')],
+            'turnstile_token' => ['required', 'string', new CloudflareTurnstile()],
         ];
     }
 
@@ -37,7 +37,7 @@ class RegisterRequest extends FormRequest
             'password.min'              => 'Password must be at least 8 characters.',
             'birthdate.before_or_equal' => 'You must be at least 15 years old to register.',
             'birthdate.after'           => 'Please enter a valid birthdate.',
-            'recaptcha_token.required'  => 'reCAPTCHA verification is required.',
+            'turnstile_token.required'  => 'Anti-bot verification is required.',
         ];
     }
 }
