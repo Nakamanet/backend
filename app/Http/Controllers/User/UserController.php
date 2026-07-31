@@ -121,7 +121,10 @@ class UserController extends Controller
     {
         $user = User::findOrFail($id);
 
-        if ($user->id !== $request->user()->id) {
+        $isSelf = $user->id === $request->user()->id;
+        $isAdmin = (bool) $request->user()->is_admin;
+
+        if (!$isSelf && !$isAdmin) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
