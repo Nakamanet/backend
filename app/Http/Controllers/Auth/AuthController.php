@@ -61,7 +61,7 @@ class AuthController extends Controller
      */
     public function me()
     {
-        return response()->json(auth('api')->user());
+        return response()->json(auth('api')->user()?->withPrivateFields());
     }
 
     /**
@@ -80,7 +80,8 @@ class AuthController extends Controller
     protected function respondWithToken(string $token, User $user, int $status = 200)
     {
         return response()->json([
-            'user'       => $user,
+            // The caller is this user, so their own private fields are theirs to read.
+            'user'       => $user->withPrivateFields(),
             'token'      => $token,
             'token_type' => 'Bearer',
             'expires_in' => auth('api')->factory()->getTTL() * 60,

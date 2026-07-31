@@ -134,6 +134,10 @@ class FriendshipController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
+        if (Friendship::isBlockedBetween($request->user()->id, $target->id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $friends = Friendship::with(['requester', 'addressee'])
             ->where('status', 'accepted')
             ->where(fn($q) => $q->where('requester_id', $target->id)->orWhere('addressee_id', $target->id))

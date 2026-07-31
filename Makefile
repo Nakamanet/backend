@@ -1,4 +1,4 @@
-.PHONY: help install dev test seed migrate deploy build up down logs shell
+.PHONY: help install dev test test-db test-db-reset seed migrate deploy build up down logs shell
 
 # Laravel API Makefile
 # Standalone commands for Laravel API service
@@ -170,6 +170,26 @@ clear-all: ## Clear all caches
 # ============================================================================
 # TESTING
 # ============================================================================
+
+TEST_DB_PORT ?= 5433
+TEST_DB_PSQL := PGPASSWORD=testeur psql -h 127.0.0.1 -p $(TEST_DB_PORT) -U testeur -d testeur
+
+test-db: ## Start the test database and (re)build its schema
+	@echo "$(BLUE)Starting postgres_test...$(NC)"
+	docker compose up -d postgres_test
+	@echo "$(BLUE)Waiting for postgres to accept connections...$(NC)"
+	@until docker compose exec -T postgres_test pg_isready -U testeur -d testeur >/dev/null 2>&1; do sleep 1; done
+	@echo "$(BLUE)Loading base schema (dump/laravel.sql)...$(NC)"
+	@$(TEST_DB_PSQL) -v ON_ERROR_STOP=1 -q -f dump/laravel.sql
+	@echo "$(BLUE)Applying migrations on top...$(NC)"
+	APP_ENV=testing DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=$(TEST_DB_PORT) \
+	DB_DATABASE=testeur DB_USERNAME=testeur DB_PASSWORD=testeur DB_SSLMODE=disable \
+	php artisan migrate --force
+	@echo "$(GREEN)✓ Test database ready$(NC)"
+
+test-db-reset: ## Wipe the test database and rebuild it from scratch
+	docker compose rm -sf postgres_test
+	@$(MAKE) test-db
 
 test: ## Run all tests
 	@echo "$(BLUE)Running tests...$(NC)"

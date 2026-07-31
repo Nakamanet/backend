@@ -26,11 +26,46 @@ class PostController extends Controller
         return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
     }
 
+    /**
+     * Attach the viewer-relative friendship status to each post author, so the
+     * client can adapt its UI (hide the comment box, link to a restricted
+     * profile, …) without one extra request per post.
+     */
+    private function attachAuthorFriendship($posts, ?int $viewerId): void
+    {
+        $posts = is_iterable($posts) ? $posts : [$posts];
+
+        $authorIds = collect($posts)
+            ->map(fn($post) => $post->relationLoaded('user') ? $post->user?->id : null)
+            ->filter()
+            ->all();
+
+        $map = Friendship::statusMapFor($viewerId, $authorIds);
+
+        $default = ['friendship_status' => 'none', 'friendship_id' => null];
+
+        foreach ($posts as $post) {
+            if (! $post->relationLoaded('user') || ! $post->user) {
+                continue;
+            }
+
+            $status = $map[$post->user->id] ?? $default;
+
+            $post->user->setAttribute('friendship_status', $status['friendship_status']);
+            $post->user->setAttribute('friendship_id', $status['friendship_id']);
+        }
+    }
+
     public function index(Request $request): JsonResponse
     {
-        $userId = $request->user()?->id;
+        $userId    = $request->user()?->id;
+        $blockedIds = Friendship::blockedUserIdsFor($userId);
 
-        $query = Post::withCount(['likes', 'comments'])
+        $query = Post::withCount([
+                'likes',
+                // Keep the count consistent with what GET /posts/{id}/comments returns.
+                'comments' => fn($q) => $q->whereNotIn('user_id', $blockedIds),
+            ])
             ->with('user')
             ->withViewerFlags($userId)
             ->visibleTo($userId)
@@ -41,17 +76,7 @@ class PostController extends Controller
             ->when($request->has_images, fn($q) => $q->whereNotNull('image_urls'));
 
         // Exclude posts from users in a blocked relationship with the caller (both directions).
-        if ($userId) {
-            $blockedIds = \App\Models\Friendship\Friendship::whereRaw("status = 'blocked'")
-                ->where(function ($q) use ($userId) {
-                    $q->where('requester_id', $userId)
-                    ->orWhere('addressee_id', $userId);
-                })
-                ->get()
-                ->map(fn ($f) => $f->requester_id === $userId ? $f->addressee_id : $f->requester_id)
-                ->unique()
-                ->values();
-
+        if ($blockedIds) {
             $query->whereNotIn('user_id', $blockedIds);
         }
 
@@ -84,14 +109,30 @@ class PostController extends Controller
             $query->with(['likes' => fn($q) => $q->where('user_id', $userId)]);
         }
 
-        return response()->json($query->paginate(20));
+        $posts = $query->paginate(20);
+
+        $this->attachAuthorFriendship($posts->items(), $userId);
+
+        return response()->json($posts);
     }
 
     public function show(Request $request, int $id): JsonResponse
     {
-        $post = Post::with(['user', 'comments.user'])
-            ->withViewerFlags($request->user()?->id)
+        $viewerId = $request->user()?->id;
+
+        $post = Post::with('user')
+            ->withViewerFlags($viewerId)
             ->findOrFail($id);
+
+        // A blocked relationship (either direction) hides the post entirely, so a
+        // direct link / notification / search result cannot bypass the feed filter.
+        if ($viewerId && Friendship::isBlockedBetween($viewerId, $post->user_id)) {
+            return response()->json(['message' => 'Not found'], 404);
+        }
+
+        $post->setRelation('comments', $this->visibleComments($post, $viewerId)->with('user')->get());
+
+        $this->attachAuthorFriendship($post, $viewerId);
 
         return response()->json($post);
     }
@@ -144,23 +185,46 @@ class PostController extends Controller
         return response()->json(['message' => 'Post deleted']);
     }
 
-    public function comments(int $id): JsonResponse
+    /**
+     * Comments of a post, minus those written by users blocked with the viewer.
+     */
+    private function visibleComments(Post $post, ?int $viewerId)
+    {
+        return $post->comments()
+            ->whereNotIn('user_id', Friendship::blockedUserIdsFor($viewerId));
+    }
+
+    public function comments(Request $request, int $id): JsonResponse
     {
         $post = Post::findOrFail($id);
 
-        return response()->json($post->comments()->with('user')->paginate(20));
+        $comments = $this->visibleComments($post, $request->user()?->id)
+            ->with('user')
+            ->paginate(20);
+
+        return response()->json($comments);
     }
 
     public function userPosts(Request $request, int $id): JsonResponse
     {
+        $viewerId = $request->user()?->id;
+
+        if ($viewerId && Friendship::isBlockedBetween($viewerId, $id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         // Archived posts are excluded here; they have their own tab (archivedOwnPosts).
         $query = Post::withCount(['likes', 'comments'])
             ->with('user')
-            ->withViewerFlags($request->user()?->id)
+            ->withViewerFlags($viewerId)
             ->where('user_id', $id)
             ->whereNull('archived_at');
 
-        return response()->json($query->latest('created_at')->paginate(20));
+        $posts = $query->latest('created_at')->paginate(20);
+
+        $this->attachAuthorFriendship($posts->items(), $viewerId);
+
+        return response()->json($posts);
     }
 
     // ===== New endpoints =====
@@ -175,10 +239,15 @@ class PostController extends Controller
 
         $viewerId = $request->user()->id;
 
+        if (Friendship::isBlockedBetween($viewerId, $target->id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $posts = Post::withCount(['likes', 'comments'])
             ->with('user')
             ->withViewerFlags($viewerId)
             ->visibleTo($viewerId)
+            ->whereNotIn('user_id', Friendship::blockedUserIdsFor($viewerId))
             ->whereHas('likes', fn($q) => $q->where('user_id', $target->id))
             ->latest('created_at')
             ->paginate(20);
@@ -293,6 +362,12 @@ class PostController extends Controller
     {
         $post = Post::findOrFail($id);
 
+        // Blocking cuts the conversation both ways: neither the blocker nor the
+        // blocked user can comment on the other's posts.
+        if (Friendship::isBlockedBetween($request->user()->id, $post->user_id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $validated = $request->validate([
             'content' => 'required|string|max:1000',
             'parent_id' => 'nullable|integer|exists:Comments,id',
@@ -301,6 +376,15 @@ class PostController extends Controller
 
         if (array_key_exists('is_spoiler', $validated)) {
             $validated['is_spoiler'] = $this->boolLiteral($validated['is_spoiler']);
+        }
+
+        // Same rule when replying to a comment rather than to the post itself.
+        if (! empty($validated['parent_id'])) {
+            $parentAuthorId = Comment::whereKey($validated['parent_id'])->value('user_id');
+
+            if ($parentAuthorId && Friendship::isBlockedBetween($request->user()->id, $parentAuthorId)) {
+                return response()->json(['message' => 'Forbidden'], 403);
+            }
         }
 
         $comment = Comment::create([

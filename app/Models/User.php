@@ -34,10 +34,37 @@ class User extends Authenticatable implements JWTSubject
         'profile_visibility',
     ];
 
+    /**
+     * Fields the owner (or an admin) may see, but that must never leak through a
+     * nested `user` object — post authors, comment authors, forum authors,
+     * friendship sides… Every one of those relations serializes the full model.
+     *
+     * Hidden by default and re-exposed explicitly via withPrivateFields(), so a
+     * new endpoint leaks nothing until someone opts in on purpose.
+     */
+    public const PRIVATE_FIELDS = [
+        'email',
+        'birthdate',
+        'role',
+        'is_admin',
+        'is_moderator',
+        'is_deleted',
+        'profile_visibility',
+    ];
+
     protected $hidden = [
         'password_hash',
+        ...self::PRIVATE_FIELDS,
     ];
-    
+
+    /**
+     * Re-expose PRIVATE_FIELDS on a payload that legitimately describes the
+     * caller themselves (auth responses, own profile) or an admin listing.
+     */
+    public function withPrivateFields(): self
+    {
+        return $this->makeVisible(self::PRIVATE_FIELDS);
+    }
 
     protected $casts = [
         'birthdate'    => 'date',

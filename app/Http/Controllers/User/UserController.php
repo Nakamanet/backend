@@ -25,28 +25,8 @@ class UserController extends Controller
             ->where('is_archived', false)
             ->count();
 
-        $friendshipStatus = 'none';
-        $friendshipId     = null;
-
-        if ($request->user() && $request->user()->id !== $target->id) {
-            $viewerId   = $request->user()->id;
-            $friendship = Friendship::where(fn($q) => $q->where('requester_id', $viewerId)->where('addressee_id', $target->id))
-                ->orWhere(fn($q) => $q->where('requester_id', $target->id)->where('addressee_id', $viewerId))
-                ->first();
-
-            if ($friendship) {
-                $friendshipId = $friendship->id;
-
-                $friendshipStatus = match (true) {
-                    $friendship->status === 'accepted' => 'friends',
-                    $friendship->status === 'pending' && $friendship->requester_id === $viewerId => 'pending_sent',
-                    $friendship->status === 'pending' => 'pending_received',
-                    $friendship->status === 'blocked' && $friendship->requester_id === $viewerId => 'blocked',
-                    $friendship->status === 'blocked' => 'blocked_by',
-                    default => 'none',
-                };
-            }
-        }
+        ['friendship_status' => $friendshipStatus, 'friendship_id' => $friendshipId]
+            = Friendship::statusFor($request->user()?->id, $target->id);
 
         // Always visible regardless of visibility setting
         $public = [
@@ -65,6 +45,14 @@ class UserController extends Controller
             'friendship_status'  => $friendshipStatus,
             'friendship_id'      => $friendshipId,
         ];
+
+        // A blocked relationship restricts the profile exactly like a private one:
+        // the payload keeps `friendship_status` (the client needs it to render the
+        // right notice and the Unblock button) but drops `role`, which is the
+        // signal the client uses to decide it may show the profile's content.
+        if (in_array($friendshipStatus, ['blocked', 'blocked_by'], true)) {
+            return response()->json($public, 200);
+        }
 
         if ($target->profile_visibility === 'private') {
             return response()->json($public, 200);
@@ -112,7 +100,7 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user'    => $user->fresh(),
+            'user'    => $user->fresh()->withPrivateFields(),
         ]);
     }
 

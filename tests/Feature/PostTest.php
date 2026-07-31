@@ -159,7 +159,8 @@ class PostTest extends TestCase
             'is_liked' => true,
         ]);
 
-        $response = $this->actingAs($user)->getJson('/api/posts/me/liked');
+        // Liked posts are exposed per-user, not under /posts/me — pass your own id.
+        $response = $this->actingAs($user)->getJson("/api/users/{$user->id}/liked-posts");
 
         $response->assertStatus(200);
     }

@@ -300,6 +300,12 @@ class ForumController extends Controller
 
     public function userTopics(int $id): JsonResponse
     {
+        $viewerId = auth('api')->id();
+
+        if ($viewerId && \App\Models\Friendship\Friendship::isBlockedBetween($viewerId, $id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
         $topics = ForumTopic::withCount('replies')
             ->with('user')
             ->where('user_id', $id)

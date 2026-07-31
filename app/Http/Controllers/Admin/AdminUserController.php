@@ -24,12 +24,16 @@ class AdminUserController extends Controller
             ->orderByDesc('id')
             ->paginate(20);
 
+        // Admin-only route (see the `admin` middleware): the moderation table needs
+        // the fields User hides from every public payload.
+        $users->getCollection()->makeVisible(User::PRIVATE_FIELDS);
+
         return response()->json($users);
     }
 
     public function show(int $id): JsonResponse
     {
-        return response()->json(User::findOrFail($id));
+        return response()->json(User::findOrFail($id)->withPrivateFields());
     }
 
     public function update(Request $request, int $id): JsonResponse
@@ -52,7 +56,7 @@ class AdminUserController extends Controller
 
         $user->update($validated);
 
-        return response()->json($user);
+        return response()->json($user->withPrivateFields());
     }
 
     public function destroy(int $id): JsonResponse

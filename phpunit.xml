@@ -23,8 +23,19 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="psql"/>
-        <env name="DB_DATABASE" value="testeur"/>
+        <!--
+            The full DB_* set is pinned here, with force="true", so a test run can
+            never reach the Neon database configured in .env — whatever .env or the
+            surrounding shell says. Matches the `postgres_test` service of
+            docker-compose.yml. Run `make test-db` once to create the schema.
+        -->
+        <env name="DB_CONNECTION" value="pgsql" force="true"/>
+        <env name="DB_HOST" value="127.0.0.1" force="true"/>
+        <env name="DB_PORT" value="5433" force="true"/>
+        <env name="DB_DATABASE" value="testeur" force="true"/>
+        <env name="DB_USERNAME" value="testeur" force="true"/>
+        <env name="DB_PASSWORD" value="testeur" force="true"/>
+        <env name="DB_SSLMODE" value="disable" force="true"/>
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

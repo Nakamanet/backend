@@ -16,11 +16,12 @@ Route::prefix('posts')->group(function () {
 
     Route::get('/{id}',          [PostController::class, 'show'])->whereNumber('id');
     Route::get('/{id}/comments', [PostController::class, 'comments'])->whereNumber('id');
-   
-    Route::post('/{id}/comments', [PostController::class, 'storeComment'])->whereNumber('id');
-    Route::delete('/comments/{commentId}', [PostController::class, 'destroyComment'])->whereNumber('commentId');
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {
+        // Both handlers dereference $request->user(), so they cannot stay public.
+        Route::post('/{id}/comments', [PostController::class, 'storeComment'])->whereNumber('id');
+        Route::delete('/comments/{commentId}', [PostController::class, 'destroyComment'])->whereNumber('commentId');
+
         Route::patch('/{id}',  [PostController::class, 'update'])->whereNumber('id');
         Route::delete('/{id}', [PostController::class, 'destroy'])->whereNumber('id');
 
