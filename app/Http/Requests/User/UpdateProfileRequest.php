@@ -16,7 +16,7 @@ class UpdateProfileRequest extends FormRequest
         $userId = $this->user()->id;
 
         return [
-            'username'         => 'sometimes|string|max:50|unique:Users,username,' . $userId,
+            'username'         => 'sometimes|string|max:50',
             'email'            => 'sometimes|email|max:100|unique:Users,email,' . $userId,
             'password'         => 'sometimes|string|min:8|confirmed',
             'birthdate'        => 'sometimes|date',

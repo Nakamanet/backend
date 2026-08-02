@@ -32,6 +32,7 @@ class UserController extends Controller
         $public = [
             'id'                 => $target->id,
             'username'           => $target->username,
+            'handle'             => $target->handle,
             'avatar_url'         => $target->avatar_url,
             'banner_url'         => $target->banner_url,
             'bio'                => $target->bio,

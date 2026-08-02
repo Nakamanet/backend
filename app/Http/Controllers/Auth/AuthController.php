@@ -15,9 +15,9 @@ class AuthController extends Controller
 {
     public function register(RegisterRequest $request)
     {
-        // $request->validated() gives only the validated fields
         $user = User::create([
             'username'      => $request->username,
+            'handle'        => $request->username, // handle = username at signup, frozen from here on
             'email'         => $request->email,
             'password_hash' => Hash::make($request->password),
             'birthdate'     => $request->birthdate,
