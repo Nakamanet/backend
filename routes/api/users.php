@@ -10,6 +10,8 @@ Route::prefix('users')->group(function () {
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {
         Route::get('/search', [UserController::class, 'search']);
+        Route::get('/search-mentions', [UserController::class, 'searchByHandle']);
+        
         Route::patch('/profile', [UserController::class, 'updateProfile']);
         Route::patch('/profile/visibility', [UserController::class, 'updateVisibility']);
         Route::put('/disable/{id}', [UserController::class, 'disableAccount']);

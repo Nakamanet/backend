@@ -10,6 +10,8 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use App\Models\Friendship\Friendship;
 use App\Models\Comment\Comment;
+use App\Models\User;
+use App\Models\Notification\Notification;
 
 class PostController extends Controller
 {
@@ -149,6 +151,9 @@ class PostController extends Controller
             ...$data,
             'user_id' => $request->user()->id,
         ]);
+
+        $this->notifyMentions($post->content, $post->id, $request->user()->id);
+
 
         return response()->json($post, 201);
     }
@@ -417,5 +422,27 @@ class PostController extends Controller
         $comment->delete();
 
         return response()->json(['message' => 'Comment deleted']);
+    }
+    private function notifyMentions(string $content, int $postId, int $senderId): void
+    {
+        preg_match_all('/@([a-zA-Z0-9_]+)/', $content, $matches);
+        $handles = array_unique($matches[1]);
+
+        if (empty($handles)) {
+            return;
+        }
+
+        $mentionedUsers = User::whereIn('handle', $handles)
+            ->where('id', '!=', $senderId) // don't notify yourself
+            ->get();
+
+        foreach ($mentionedUsers as $user) {
+            Notification::create([
+                'recipient_id' => $user->id,
+                'sender_id'    => $senderId,
+                'type'         => 'mention',
+                'payload'      => ['post_id' => $postId],
+            ]);
+        }
     }
 }

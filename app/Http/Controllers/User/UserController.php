@@ -151,6 +151,22 @@ class UserController extends Controller
 
         return response()->json($users);
     }
+    public function searchByHandle(Request $request): JsonResponse
+    {
+        $query = $request->input('q', '');
+
+        if (strlen($query) < 1) {
+            return response()->json([]);
+        }
+
+        $users = User::where('handle', 'ilike', $query . '%')
+            ->where('is_deleted', false)
+            ->select('id', 'username', 'handle', 'avatar_url')
+            ->limit(8)
+            ->get();
+
+        return response()->json($users);
+    }
 
     public function updateVisibility(Request $request): JsonResponse
     {
