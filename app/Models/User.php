@@ -26,6 +26,31 @@ class User extends Authenticatable implements JWTSubject
             'profile_visibility',
         ]);
     }
+    public function isVisibleTo(?User $viewer): bool
+    {
+        if ($this->profile_visibility === 'public') {
+            return true;
+        }
+
+        if (!$viewer) {
+            return false;
+        }
+
+        if ($viewer->id === $this->id) {
+            return true;
+        }
+
+        if ($this->profile_visibility === 'private') {
+            return false;
+        }
+
+        if ($this->profile_visibility === 'friends_only') {
+            $friendship = \App\Models\Friendship\Friendship::between($this->id, $viewer->id);
+            return $friendship !== null && $friendship->status === 'accepted';
+        }
+
+        return false;
+    }
     use HasFactory, Notifiable;
 
     protected $table = 'Users';
