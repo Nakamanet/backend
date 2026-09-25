@@ -12,7 +12,7 @@ class EnsureUserIsAdmin
     {
         $user = $request->user();
 
-        if (!$user || !$user->isAdmin()) {
+        if (app/Models/User.phpuser || app/Models/User.phpuser->is_admin) {
             return response()->json(['message' => 'Forbidden — admin access required'], 403);
         }
 
