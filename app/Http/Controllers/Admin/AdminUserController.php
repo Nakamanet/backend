@@ -54,6 +54,11 @@ class AdminUserController extends Controller
             }
         }
 
+        if (isset($validated['role'])) {
+            $validated['is_admin'] = $validated['role'] === 'admin';
+            $validated['is_moderator'] = in_array($validated['role'], ['admin', 'moderator']);
+        }
+
         $user->update($validated);
 
         return response()->json($user->withPrivateFields());
