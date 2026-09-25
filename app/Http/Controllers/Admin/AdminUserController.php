@@ -19,8 +19,10 @@ class AdminUserController extends Controller
     {
         try {
             $users = User::query()
-                ->when($request->search, fn($q) => $q->where('username', 'ilike', "%{\$request->search}%")
-                    ->orWhere('email', 'ilike', "%{\$request->search}%"))
+                ->when($request->search, function($q) use ($request) {
+                    $q->where('username', 'ilike', '%' . $request->search . '%')
+                      ->orWhere('email', 'ilike', '%' . $request->search . '%');
+                })
                 ->when($request->role, fn($q) => $q->where('role', $request->role))
                 ->orderByDesc('id')
                 ->paginate(20);
