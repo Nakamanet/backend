@@ -17,16 +17,20 @@ class AdminUserController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $users = User::query()
-            ->when($request->search, fn($q) => $q->where('username', 'ilike', "%{$request->search}%")
-                ->orWhere('email', 'ilike', "%{$request->search}%"))
-            ->when($request->role, fn($q) => $q->where('role', $request->role))
-            ->orderByDesc('id')
-            ->paginate(20);
+        try {
+            $users = User::query()
+                ->when($request->search, fn($q) => $q->where('username', 'ilike', "%{\$request->search}%")
+                    ->orWhere('email', 'ilike', "%{\$request->search}%"))
+                ->when($request->role, fn($q) => $q->where('role', $request->role))
+                ->orderByDesc('id')
+                ->paginate(20);
 
-        $users->getCollection()->each(fn($user) => $user->withPrivateFields());
+            $users->getCollection()->each(fn($user) => $user->withPrivateFields());
 
-        return response()->json($users);
+            return response()->json($users);
+        } catch (\Throwable $e) {
+            return response()->json(['error' => $e->getMessage(), 'trace' => $e->getTraceAsString()], 500);
+        }
     }
 
     public function show(int $id): JsonResponse
