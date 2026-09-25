@@ -45,15 +45,24 @@ class ReportController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        // group reports by target, ordered by report count desc (most-flagged first)
-        $grouped = Report::select('reportable_type', 'reportable_id', DB::raw('COUNT(*) as report_count'))
+        $perPage = 20;
+        $currentPage = (int) $request->input('page', 1);
+
+        $baseQuery = Report::select('reportable_type', 'reportable_id', DB::raw('COUNT(*) as report_count'))
             ->where('status', 'pending')
-            ->groupBy('reportable_type', 'reportable_id')
+            ->groupBy('reportable_type', 'reportable_id');
+
+        $total = DB::table(DB::raw("({$baseQuery->toSql()}) as sub"))
+            ->mergeBindings($baseQuery->getQuery())
+            ->count();
+
+        $results = (clone $baseQuery)
             ->orderByDesc('report_count')
-            ->paginate(20);
+            ->forPage($currentPage, $perPage)
+            ->get();
 
         // attach the actual post content + latest report reason for context
-        $items = collect($grouped->items())->map(function ($row) {
+        $items = $results->map(function ($row) {
             $target = null;
             if ($row->reportable_type === 'post') {
                 $target = Post::withCount('likes')->with('user')->find($row->reportable_id);
@@ -74,11 +83,13 @@ class ReportController extends Controller
             ];
         });
 
+        $lastPage = (int) ceil($total / $perPage);
+
         return response()->json([
             'data' => $items,
-            'current_page' => $grouped->currentPage(),
-            'last_page' => $grouped->lastPage(),
-            'total' => $grouped->total(),
+            'current_page' => $currentPage,
+            'last_page' => max(1, $lastPage),
+            'total' => $total,
         ]);
     }
 

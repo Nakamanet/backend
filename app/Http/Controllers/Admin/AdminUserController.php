@@ -24,9 +24,7 @@ class AdminUserController extends Controller
             ->orderByDesc('id')
             ->paginate(20);
 
-        // Admin-only route (see the `admin` middleware): the moderation table needs
-        // the fields User hides from every public payload.
-        $users->getCollection()->makeVisible(User::PRIVATE_FIELDS);
+        $users->getCollection()->each(fn($user) => $user->withPrivateFields());
 
         return response()->json($users);
     }
