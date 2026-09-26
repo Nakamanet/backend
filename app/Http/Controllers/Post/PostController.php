@@ -147,13 +147,32 @@ class PostController extends Controller
             $data['is_spoiler'] = $this->boolLiteral($data['is_spoiler']);
         }
 
+        $modService = new \App\Services\ModerationService();
+        $isToxic = false;
+        
+        if (isset($data['content']) && $modService->isFlagged($data['content'])) {
+            $isToxic = true;
+        }
+
         $post = Post::create([
             ...$data,
             'user_id' => $request->user()->id,
+            'is_hidden' => $isToxic,
         ]);
 
-        $this->notifyMentions($post->content, $post->id, $request->user()->id);
+        if ($isToxic) {
+            \App\Models\Report\Report::create([
+                'reporter_id' => null, // System AI
+                'reportable_type' => 'post',
+                'reportable_id' => $post->id,
+                'reason' => 'Auto-flagged by AI Moderation',
+                'details' => implode(', ', $modService->getFlaggedCategories($data['content'])),
+                'status' => 'pending',
+            ]);
+            return response()->json(['message' => 'Post submitted for manual review due to content policies.'], 201);
+        }
 
+        $this->notifyMentions($post->content, $post->id, $request->user()->id);
 
         return response()->json($post, 201);
     }
@@ -375,8 +394,6 @@ class PostController extends Controller
     {
         $post = Post::findOrFail($id);
 
-        // Blocking cuts the conversation both ways: neither the blocker nor the
-        // blocked user can comment on the other's posts.
         if (Friendship::isBlockedBetween($request->user()->id, $post->user_id)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
@@ -391,7 +408,6 @@ class PostController extends Controller
             $validated['is_spoiler'] = $this->boolLiteral($validated['is_spoiler']);
         }
 
-        // Same rule when replying to a comment rather than to the post itself.
         if (! empty($validated['parent_id'])) {
             $parentAuthorId = Comment::whereKey($validated['parent_id'])->value('user_id');
 
@@ -400,11 +416,31 @@ class PostController extends Controller
             }
         }
 
+        $modService = new \App\Services\ModerationService();
+        $isToxic = false;
+        
+        if (isset($validated['content']) && $modService->isFlagged($validated['content'])) {
+            $isToxic = true;
+        }
+
         $comment = Comment::create([
             ...$validated,
             'user_id' => $request->user()->id,
             'post_id' => $post->id,
+            'is_hidden' => $isToxic,
         ]);
+
+        if ($isToxic) {
+            \App\Models\Report\Report::create([
+                'reporter_id' => null, // System AI
+                'reportable_type' => 'comment',
+                'reportable_id' => $comment->id,
+                'reason' => 'Auto-flagged by AI Moderation',
+                'details' => implode(', ', $modService->getFlaggedCategories($validated['content'])),
+                'status' => 'pending',
+            ]);
+            return response()->json(['message' => 'Comment submitted for manual review due to content policies.'], 201);
+        }
 
         $comment->load('user');
 

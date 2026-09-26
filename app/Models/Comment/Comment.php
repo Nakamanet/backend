@@ -12,6 +12,11 @@ class Comment extends Model
     use HasFactory;
 
     protected $table = 'Comments';
+
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
+    }
     public $timestamps = false; // ← added: table has no created_at/updated_at columns
 
     protected $fillable = [
@@ -20,6 +25,7 @@ class Comment extends Model
         'parent_id',
         'content',
         'is_spoiler',
+        'is_hidden',
     ];
 
     protected $casts = [

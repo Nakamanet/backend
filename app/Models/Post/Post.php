@@ -14,6 +14,11 @@ class Post extends Model
 
     protected $table = 'Posts';
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
+    }
+
     protected $fillable = [
         'user_id',
         'related_anime_id',
@@ -21,6 +26,7 @@ class Post extends Model
         'content',
         'image_urls',
         'is_spoiler',
+        'is_hidden',
         'archived_at',
     ];
 
