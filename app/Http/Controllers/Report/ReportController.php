@@ -120,19 +120,33 @@ class ReportController extends Controller
             'action' => 'required|in:delete_content,warn_user,dismiss',
         ]);
 
-        if ($validated['action'] === 'delete_content' && $validated['reportable_type'] === 'post') {
-            $post = Post::find($validated['reportable_id']);
+        $authorId = null;
 
+        if ($validated['reportable_type'] === 'post') {
+            $post = Post::find($validated['reportable_id']);
             if ($post) {
-                DB::transaction(function () use ($post) {
-                    // delete dependents first — Posts has no ON DELETE CASCADE
-                    $post->comments()->delete();
-                    $post->likes()->delete();
-                    $post->savedBy()->detach();
-                    $post->archivedBy()->detach();
-                    $post->delete();
-                });
+                $authorId = $post->user_id;
+                if ($validated['action'] === 'delete_content') {
+                    $post->delete(); // Cascades via model event
+                }
             }
+        } elseif ($validated['reportable_type'] === 'comment') {
+            $comment = \App\Models\Comment\Comment::find($validated['reportable_id']);
+            if ($comment) {
+                $authorId = $comment->user_id;
+                if ($validated['action'] === 'delete_content') {
+                    $comment->delete();
+                }
+            }
+        }
+
+        if ($validated['action'] === 'warn_user' && $authorId) {
+            \App\Models\Notification\Notification::create([
+                'recipient_id' => $authorId,
+                'sender_id'    => $request->user()->id,
+                'type'         => 'system_warning',
+                'payload'      => ['message' => 'Votre contenu récent a été signalé car il enfreint nos règles communautaires.'],
+            ]);
         }
 
         Report::where('reportable_type', $validated['reportable_type'])

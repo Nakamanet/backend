@@ -17,6 +17,13 @@ class Post extends Model
     protected static function booted(): void
     {
         static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
+
+        static::deleting(function ($post) {
+            $post->comments()->delete();
+            $post->likes()->delete();
+            $post->savedBy()->detach();
+            $post->archivedBy()->detach();
+        });
     }
 
     protected $fillable = [
