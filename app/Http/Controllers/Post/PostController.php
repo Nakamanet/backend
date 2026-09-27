@@ -231,9 +231,10 @@ class PostController extends Controller
 
     public function userPosts(Request $request, int $id): JsonResponse
     {
+        $target   = User::findOrFail($id);
         $viewerId = $request->user()?->id;
 
-        if ($viewerId && Friendship::isBlockedBetween($viewerId, $id)) {
+        if (! $target->isVisibleTo($request->user()) || ($viewerId && Friendship::isBlockedBetween($viewerId, $id))) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 

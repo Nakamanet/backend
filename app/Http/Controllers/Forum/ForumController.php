@@ -10,6 +10,9 @@ use App\Models\Forum\ForumTopic;
 use App\Models\Forum\ForumTopicView;
 use App\Models\Forum\ForumUserPin;
 use App\Models\Forum\ForumVote;
+use App\Models\Friendship\Friendship;
+use App\Models\User;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -203,7 +206,17 @@ class ForumController extends Controller
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
-        $topic->delete();
+        DB::transaction(function () use ($topic) {
+            $replyIds = ForumReply::where('topic_id', $topic->id)->pluck('id');
+
+            ForumVote::where(fn($q) => $q->where('target_type', 'topic')->where('target_id', $topic->id))
+                ->orWhere(fn($q) => $q->where('target_type', 'reply')->whereIn('target_id', $replyIds))
+                ->delete();
+
+            ForumReply::where('topic_id', $topic->id)->delete();
+
+            $topic->delete();
+        });
 
         return response()->json(['message' => 'Topic deleted']);
     }
@@ -298,11 +311,12 @@ class ForumController extends Controller
         return response()->json($topics);
     }
 
-    public function userTopics(int $id): JsonResponse
+    public function userTopics(Request $request, int $id): JsonResponse
     {
-        $viewerId = auth('api')->id();
+        $target   = User::findOrFail($id);
+        $viewerId = $request->user()->id;
 
-        if ($viewerId && \App\Models\Friendship\Friendship::isBlockedBetween($viewerId, $id)) {
+        if (! $target->isVisibleTo($request->user()) || Friendship::isBlockedBetween($viewerId, $id)) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 

@@ -7,6 +7,7 @@ use App\Http\Requests\Library\AnimeLibraryRequest;
 use App\Http\Requests\Library\MangaLibraryRequest;
 use App\Models\Library\UserAnimeLibrary;
 use App\Models\Library\UserMangaLibrary;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -35,6 +36,33 @@ class LibraryController extends Controller
     public function animeIndex(Request $request): JsonResponse
     {
         $library = UserAnimeLibrary::where('user_id', $request->user()->id)
+            ->when($request->status, fn($q) => $q->where('status', $request->status))
+            ->get();
+
+        return response()->json($library);
+    }
+
+    public function userAnimeIndex(Request $request, int $id): JsonResponse
+    {
+        return $this->userLibrary($request, $id, UserAnimeLibrary::class);
+    }
+
+    public function userMangaIndex(Request $request, int $id): JsonResponse
+    {
+        return $this->userLibrary($request, $id, UserMangaLibrary::class);
+    }
+
+    private function userLibrary(Request $request, int $id, string $model): JsonResponse
+    {
+        $target = User::findOrFail($id);
+        $viewer = $request->user();
+
+        if (! $target->isVisibleTo($viewer) || Friendship::isBlockedBetween($viewer->id, $target->id)) {
+            return response()->json(['message' => 'Forbidden'], 403);
+        }
+
+        $library = $model::where('user_id', $target->id)
+            ->when($viewer->id !== $target->id, fn($q) => $q->whereRaw('is_private = false'))
             ->when($request->status, fn($q) => $q->where('status', $request->status))
             ->get();
 

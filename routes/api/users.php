@@ -4,6 +4,7 @@ use App\Http\Controllers\User\UserController;
 use App\Http\Controllers\Post\PostController;
 use App\Http\Controllers\Forum\ForumController;
 use App\Http\Controllers\Friendship\FriendshipController;
+use App\Http\Controllers\Library\LibraryController;
 
 Route::prefix('users')->group(function () {
     Route::get('/{id}/profile', [UserController::class, 'profile']);
@@ -20,5 +21,7 @@ Route::prefix('users')->group(function () {
         Route::get('/{id}/liked-posts', [PostController::class, 'userLikedPosts']);
         Route::get('/{id}/friends', [FriendshipController::class, 'userFriends']);
         Route::get('/{id}/forum-topics', [ForumController::class, 'userTopics']);
+        Route::get('/{id}/library/anime', [LibraryController::class, 'userAnimeIndex']);
+        Route::get('/{id}/library/manga', [LibraryController::class, 'userMangaIndex']);
     });
 });

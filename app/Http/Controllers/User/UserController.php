@@ -20,7 +20,9 @@ class UserController extends Controller
         $friendsCount = Friendship::where('status', 'accepted')
             ->where(fn($q) => $q->where('requester_id', $target->id)->orWhere('addressee_id', $target->id))
             ->count();
-        $libraryCount = $target->animeLibrary()->count() + $target->mangaLibrary()->count();
+        $isOwner      = $request->user()?->id === $target->id;
+        $libraryCount = $target->animeLibrary()->when(! $isOwner, fn($q) => $q->whereRaw('is_private = false'))->count()
+            + $target->mangaLibrary()->when(! $isOwner, fn($q) => $q->whereRaw('is_private = false'))->count();
         $topicsCount  = \App\Models\Forum\ForumTopic::where('user_id', $target->id)
             ->where('is_archived', false)
             ->count();
