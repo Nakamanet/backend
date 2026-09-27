@@ -70,6 +70,7 @@ class User extends Authenticatable implements JWTSubject
         'is_admin',
         'is_moderator',
         'profile_visibility',
+        'banned_until',
     ];
 
     protected $hidden = [
@@ -81,6 +82,7 @@ class User extends Authenticatable implements JWTSubject
         'is_deleted'   => 'boolean',
         'is_admin'     => 'boolean',
         'is_moderator' => 'boolean',
+        'banned_until' => 'datetime',
     ];
 
     public function getJWTIdentifier()

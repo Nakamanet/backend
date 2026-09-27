@@ -65,7 +65,7 @@ class ReportController extends Controller
         $items = $results->map(function ($row) {
             $target = null;
             if ($row->reportable_type === 'post') {
-                $target = Post::withCount('likes')->with('user')->find($row->reportable_id);
+                $target = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->withCount('likes')->with('user')->find($row->reportable_id);
             }
 
             $latestReport = Report::where('reportable_type', $row->reportable_type)
@@ -123,7 +123,7 @@ class ReportController extends Controller
         $authorId = null;
 
         if ($validated['reportable_type'] === 'post') {
-            $post = Post::find($validated['reportable_id']);
+            $post = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->find($validated['reportable_id']);
             if ($post) {
                 $authorId = $post->user_id;
                 if ($validated['action'] === 'delete_content') {
@@ -131,7 +131,7 @@ class ReportController extends Controller
                 }
             }
         } elseif ($validated['reportable_type'] === 'comment') {
-            $comment = \App\Models\Comment\Comment::find($validated['reportable_id']);
+            $comment = \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->find($validated['reportable_id']);
             if ($comment) {
                 $authorId = $comment->user_id;
                 if ($validated['action'] === 'delete_content') {
@@ -141,11 +141,19 @@ class ReportController extends Controller
         }
 
         if ($validated['action'] === 'warn_user' && $authorId) {
+            $user = \App\Models\User::find($authorId);
+            if ($user) {
+                $user->banned_until = now()->addMinutes(30);
+                $user->save();
+            }
+
             \App\Models\Notification\Notification::create([
                 'recipient_id' => $authorId,
                 'sender_id'    => $request->user()->id,
                 'type'         => 'system_warning',
-                'payload'      => ['message' => 'Votre contenu récent a été signalé car il enfreint nos règles communautaires.'],
+                'payload'      => [
+                    'message' => 'Votre contenu récent a été signalé car il enfreint nos règles communautaires. En conséquence, vous avez reçu une interdiction temporaire de publier pendant 30 minutes.'
+                ],
             ]);
         }
 

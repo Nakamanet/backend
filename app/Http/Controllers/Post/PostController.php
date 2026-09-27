@@ -141,6 +141,11 @@ class PostController extends Controller
 
     public function store(StorePostRequest $request): JsonResponse
     {
+        $user = $request->user();
+        if ($user && $user->banned_until && $user->banned_until->isFuture()) {
+            return response()->json(['message' => 'Vous êtes temporairement interdit de publier. Réessayez plus tard.'], 403);
+        }
+
         $data = $request->validated();
 
         if (array_key_exists('is_spoiler', $data)) {
@@ -393,6 +398,11 @@ class PostController extends Controller
     }
     public function storeComment(Request $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && $user->banned_until && $user->banned_until->isFuture()) {
+            return response()->json(['message' => 'Vous êtes temporairement interdit de commenter. Réessayez plus tard.'], 403);
+        }
+
         $post = Post::findOrFail($id);
 
         if (Friendship::isBlockedBetween($request->user()->id, $post->user_id)) {
