@@ -14,14 +14,14 @@ class HideToxicContentScope implements Scope
      */
     public function apply(Builder $builder, Model $model): void
     {
-        if (Auth::hasUser() && (Auth::user()->is_admin || Auth::user()->is_moderator)) {
+        if (Auth::check() && (Auth::user()->is_admin || Auth::user()->is_moderator)) {
             // Admins and moderators see everything
             return;
         }
 
         $builder->where(function ($q) {
             $q->where('is_hidden', false);
-            if (Auth::hasUser()) {
+            if (Auth::check()) {
                 $q->orWhere('user_id', Auth::id());
             }
         });
