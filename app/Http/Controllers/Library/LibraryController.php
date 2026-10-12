@@ -188,6 +188,22 @@ class LibraryController extends Controller
         ]);
     }
     // LibraryController.php
+    public function popularity(string $type): JsonResponse
+    {
+        [$model, $column] = $type === 'anime'
+            ? [UserAnimeLibrary::class, 'anime_id']
+            : [UserMangaLibrary::class, 'manga_id'];
+
+        $popularity = $model::whereRaw('is_private = false')
+            ->select($column . ' as id', DB::raw('COUNT(*) as count'))
+            ->groupBy($column)
+            ->orderByDesc('count')
+            ->orderBy($column)
+            ->get();
+
+        return response()->json($popularity);
+    }
+
     public function topAnime(): JsonResponse
     {
         $top = UserAnimeLibrary::whereRaw('is_private = false')

@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Library\LibraryController;
 
+Route::get('/library/popularity/{type}', [LibraryController::class, 'popularity'])->whereIn('type', ['anime', 'manga']);
+
 Route::middleware(['auth:api', 'user.active'])->prefix('library')->group(function () {
     Route::get('/anime', [LibraryController::class, 'animeIndex']);
     Route::post('/anime', [LibraryController::class, 'animeStore']);
