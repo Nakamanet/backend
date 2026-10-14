@@ -49,7 +49,7 @@ class ReportController extends Controller
         $currentPage = (int) $request->input('page', 1);
 
         $baseQuery = Report::select('reportable_type', 'reportable_id', DB::raw('COUNT(*) as report_count'))
-            ->where('status', 'pending')
+            ->where('status', '!=', 'dismissed')
             ->groupBy('reportable_type', 'reportable_id');
 
         $total = DB::table(DB::raw("({$baseQuery->toSql()}) as sub"))
@@ -64,22 +64,82 @@ class ReportController extends Controller
         // attach the actual post content + latest report reason for context
         $items = $results->map(function ($row) {
             $target = null;
+            $isDeleted = false;
+            $savedContent = null;
+            $savedAuthor = null;
+
             if ($row->reportable_type === 'post') {
-                $target = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->withCount('likes')->with('user')->find($row->reportable_id);
+                $target = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                    ->withCount('likes')
+                    ->with('user')
+                    ->find($row->reportable_id);
+            } elseif ($row->reportable_type === 'comment') {
+                $target = \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                    ->with('user')
+                    ->find($row->reportable_id);
             }
 
             $latestReport = Report::where('reportable_type', $row->reportable_type)
                 ->where('reportable_id', $row->reportable_id)
+                ->where('status', '!=', 'dismissed')
                 ->latest('created_at')
                 ->first();
+
+            $allDetails = Report::where('reportable_type', $row->reportable_type)
+                ->where('reportable_id', $row->reportable_id)
+                ->pluck('details')
+                ->filter()
+                ->implode(' ');
+
+            $authorWarned = str_contains($allDetails, '[AUTEUR_AVERTI]') || ($target?->user?->banned_until && $target->user->banned_until > now());
+
+            if (!$target) {
+                $isDeleted = true;
+                if (preg_match('/\[CONTENU_SUPPRIME:(.*?)\]/s', $allDetails, $matches)) {
+                    $decoded = json_decode($matches[1], true);
+                    if (is_array($decoded)) {
+                        $savedContent = $decoded['content'] ?? null;
+                        $savedAuthor = isset($decoded['author']) ? ['username' => $decoded['author']] : null;
+                    }
+                }
+            }
+
+            $cleanDetails = $latestReport?->details;
+            if ($cleanDetails) {
+                $cleanDetails = preg_replace('/\[AUTEUR_AVERTI\]/', '', $cleanDetails);
+                $cleanDetails = preg_replace('/\[CONTENU_SUPPRIME:.*?\]/s', '', $cleanDetails);
+                $cleanDetails = trim($cleanDetails);
+                if (empty($cleanDetails)) {
+                    $cleanDetails = null;
+                }
+            }
+
+            $targetData = null;
+            if ($target) {
+                $targetData = [
+                    'id' => $target->id,
+                    'content' => $target->content,
+                    'user' => $target->user,
+                    'is_hidden' => $target->is_hidden ?? false,
+                ];
+            } elseif ($savedContent) {
+                $targetData = [
+                    'id' => $row->reportable_id,
+                    'content' => $savedContent,
+                    'user' => $savedAuthor,
+                    'is_hidden' => true,
+                ];
+            }
 
             return [
                 'reportable_type' => $row->reportable_type,
                 'reportable_id' => $row->reportable_id,
                 'report_count' => $row->report_count,
-                'target' => $target,
+                'target' => $targetData,
+                'is_deleted' => $isDeleted,
+                'author_warned' => $authorWarned,
                 'latest_reason' => $latestReport?->reason,
-                'latest_details' => $latestReport?->details,
+                'latest_details' => $cleanDetails,
             ];
         });
 
@@ -102,14 +162,13 @@ class ReportController extends Controller
 
         Report::where('reportable_type', $validated['reportable_type'])
             ->where('reportable_id', $validated['reportable_id'])
-            ->where('status', 'pending')
             ->update([
                 'status' => 'dismissed',
                 'reviewed_at' => now(),
                 'reviewed_by' => $request->user()->id,
             ]);
 
-        return response()->json(['message' => 'Reports dismissed']);
+        return response()->json(['message' => 'Signalement supprimé du panneau']);
     }
 
     public function takeAction(Request $request): JsonResponse
@@ -117,55 +176,134 @@ class ReportController extends Controller
         $validated = $request->validate([
             'reportable_type' => 'required|string',
             'reportable_id' => 'required|integer',
-            'action' => 'required|in:delete_content,warn_user,dismiss',
+            'action' => 'required|in:delete_content,warn_user,delete_report,dismiss',
         ]);
 
         $authorId = null;
+        $authorUsername = null;
+        $content = null;
 
         if ($validated['reportable_type'] === 'post') {
-            $post = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->find($validated['reportable_id']);
+            $post = Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                ->with('user')
+                ->find($validated['reportable_id']);
             if ($post) {
                 $authorId = $post->user_id;
-                if ($validated['action'] === 'delete_content') {
-                    $post->delete(); // Cascades via model event
-                }
+                $authorUsername = $post->user?->username;
+                $content = $post->content;
             }
         } elseif ($validated['reportable_type'] === 'comment') {
-            $comment = \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->find($validated['reportable_id']);
+            $comment = \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                ->with('user')
+                ->find($validated['reportable_id']);
             if ($comment) {
                 $authorId = $comment->user_id;
-                if ($validated['action'] === 'delete_content') {
-                    $comment->delete();
+                $authorUsername = $comment->user?->username;
+                $content = $comment->content;
+            }
+        }
+
+        // Action 1: Delete/Dismiss signalement from panel
+        if ($validated['action'] === 'delete_report' || $validated['action'] === 'dismiss') {
+            Report::where('reportable_type', $validated['reportable_type'])
+                ->where('reportable_id', $validated['reportable_id'])
+                ->update([
+                    'status' => 'dismissed',
+                    'reviewed_at' => now(),
+                    'reviewed_by' => $request->user()->id,
+                ]);
+
+            return response()->json(['message' => 'Signalement supprimé du panneau de modération']);
+        }
+
+        // Action 2: Warn author
+        if ($validated['action'] === 'warn_user') {
+            if (!$authorId) {
+                $allDetails = Report::where('reportable_type', $validated['reportable_type'])
+                    ->where('reportable_id', $validated['reportable_id'])
+                    ->pluck('details')
+                    ->filter()
+                    ->implode(' ');
+                if (preg_match('/\[CONTENU_SUPPRIME:(.*?)\]/s', $allDetails, $matches)) {
+                    $decoded = json_decode($matches[1], true);
+                    if (isset($decoded['author_id'])) {
+                        $authorId = (int)$decoded['author_id'];
+                    }
                 }
             }
-        }
 
-        if ($validated['action'] === 'warn_user' && $authorId) {
-            $user = \App\Models\User::find($authorId);
-            if ($user) {
-                $user->banned_until = now()->addMinutes(30);
-                $user->save();
+            if ($authorId) {
+                $user = \App\Models\User::find($authorId);
+                if ($user) {
+                    $user->banned_until = now()->addMinutes(30);
+                    $user->save();
+                }
+
+                \App\Models\Notification\Notification::create([
+                    'recipient_id' => $authorId,
+                    'sender_id'    => $request->user()->id,
+                    'type'         => 'system_warning',
+                    'payload'      => [
+                        'message' => 'Votre contenu récent a été signalé car il enfreint nos règles communautaires. En conséquence, vous avez reçu une interdiction temporaire de publier pendant 30 minutes.'
+                    ],
+                ]);
             }
 
-            \App\Models\Notification\Notification::create([
-                'recipient_id' => $authorId,
-                'sender_id'    => $request->user()->id,
-                'type'         => 'system_warning',
-                'payload'      => [
-                    'message' => 'Votre contenu récent a été signalé car il enfreint nos règles communautaires. En conséquence, vous avez reçu une interdiction temporaire de publier pendant 30 minutes.'
-                ],
+            // Append [AUTEUR_AVERTI] marker and mark action_taken
+            $reports = Report::where('reportable_type', $validated['reportable_type'])
+                ->where('reportable_id', $validated['reportable_id'])
+                ->get();
+
+            foreach ($reports as $r) {
+                if (!str_contains($r->details ?? '', '[AUTEUR_AVERTI]')) {
+                    $r->details = trim(($r->details ?? '') . ' [AUTEUR_AVERTI]');
+                }
+                $r->status = 'action_taken';
+                $r->reviewed_at = now();
+                $r->reviewed_by = $request->user()->id;
+                $r->save();
+            }
+
+            return response()->json([
+                'message' => 'Auteur averti et suspendu pour 30 minutes',
+                'author_warned' => true,
             ]);
         }
 
-        Report::where('reportable_type', $validated['reportable_type'])
-            ->where('reportable_id', $validated['reportable_id'])
-            ->where('status', 'pending')
-            ->update([
-                'status' => 'action_taken',
-                'reviewed_at' => now(),
-                'reviewed_by' => $request->user()->id,
+        // Action 3: Delete content
+        if ($validated['action'] === 'delete_content') {
+            $reports = Report::where('reportable_type', $validated['reportable_type'])
+                ->where('reportable_id', $validated['reportable_id'])
+                ->get();
+
+            $snapshotData = json_encode([
+                'content'   => $content,
+                'author'    => $authorUsername,
+                'author_id' => $authorId,
             ]);
 
-        return response()->json(['message' => 'Action taken']);
+            foreach ($reports as $r) {
+                if (!str_contains($r->details ?? '', '[CONTENU_SUPPRIME:')) {
+                    $r->details = trim(($r->details ?? '') . " [CONTENU_SUPPRIME:{$snapshotData}]");
+                }
+                $r->status = 'action_taken';
+                $r->reviewed_at = now();
+                $r->reviewed_by = $request->user()->id;
+                $r->save();
+            }
+
+            if ($validated['reportable_type'] === 'post' && isset($post)) {
+                $post->delete();
+            } elseif ($validated['reportable_type'] === 'comment' && isset($comment)) {
+                $comment->delete();
+            }
+
+            return response()->json([
+                'message' => 'Contenu supprimé de la plateforme avec succès',
+                'is_deleted' => true,
+            ]);
+        }
+
+        return response()->json(['message' => 'Action non reconnue'], 400);
     }
 }
