@@ -14,7 +14,7 @@ class ReportController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'reportable_type' => 'required|in:post,comment',
+            'reportable_type' => 'required|in:post,comment,forum_topic,forum_reply',
             'reportable_id' => 'required|integer',
             'reason' => 'nullable|string|max:50',
             'details' => 'nullable|string|max:500',
@@ -22,7 +22,13 @@ class ReportController extends Controller
 
         // confirm the target actually exists, so you can't flood junk report rows
         if ($validated['reportable_type'] === 'post') {
-            Post::findOrFail($validated['reportable_id']);
+            Post::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->findOrFail($validated['reportable_id']);
+        } elseif ($validated['reportable_type'] === 'comment') {
+            \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->findOrFail($validated['reportable_id']);
+        } elseif ($validated['reportable_type'] === 'forum_topic') {
+            \App\Models\Forum\ForumTopic::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->findOrFail($validated['reportable_id']);
+        } elseif ($validated['reportable_type'] === 'forum_reply') {
+            \App\Models\Forum\ForumReply::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->findOrFail($validated['reportable_id']);
         }
 
         $report = Report::firstOrCreate(
@@ -77,6 +83,14 @@ class ReportController extends Controller
                 $target = \App\Models\Comment\Comment::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
                     ->with('user')
                     ->find($row->reportable_id);
+            } elseif ($row->reportable_type === 'forum_topic') {
+                $target = \App\Models\Forum\ForumTopic::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                    ->with('user')
+                    ->find($row->reportable_id);
+            } elseif ($row->reportable_type === 'forum_reply') {
+                $target = \App\Models\Forum\ForumReply::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                    ->with('user')
+                    ->find($row->reportable_id);
             }
 
             $latestReport = Report::where('reportable_type', $row->reportable_type)
@@ -116,9 +130,14 @@ class ReportController extends Controller
 
             $targetData = null;
             if ($target) {
+                $displayedContent = $target->content;
+                if ($row->reportable_type === 'forum_topic') {
+                    $displayedContent = "[Sujet: {$target->title}]\n\n" . $target->content;
+                }
                 $targetData = [
                     'id' => $target->id,
-                    'content' => $target->content,
+                    'title' => $target->title ?? null,
+                    'content' => $displayedContent,
                     'user' => $target->user,
                     'is_hidden' => $target->is_hidden ?? false,
                 ];
@@ -200,6 +219,24 @@ class ReportController extends Controller
                 $authorId = $comment->user_id;
                 $authorUsername = $comment->user?->username;
                 $content = $comment->content;
+            }
+        } elseif ($validated['reportable_type'] === 'forum_topic') {
+            $topic = \App\Models\Forum\ForumTopic::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                ->with('user')
+                ->find($validated['reportable_id']);
+            if ($topic) {
+                $authorId = $topic->user_id;
+                $authorUsername = $topic->user?->username;
+                $content = "[Sujet: {$topic->title}]\n\n" . $topic->content;
+            }
+        } elseif ($validated['reportable_type'] === 'forum_reply') {
+            $reply = \App\Models\Forum\ForumReply::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)
+                ->with('user')
+                ->find($validated['reportable_id']);
+            if ($reply) {
+                $authorId = $reply->user_id;
+                $authorUsername = $reply->user?->username;
+                $content = $reply->content;
             }
         }
 
@@ -296,6 +333,23 @@ class ReportController extends Controller
                 $post->delete();
             } elseif ($validated['reportable_type'] === 'comment' && isset($comment)) {
                 $comment->delete();
+            } elseif ($validated['reportable_type'] === 'forum_topic' && isset($topic)) {
+                DB::transaction(function () use ($topic) {
+                    $replyIds = \App\Models\Forum\ForumReply::where('topic_id', $topic->id)->pluck('id');
+                    \App\Models\Forum\ForumVote::where(fn($q) => $q->where('target_type', 'topic')->where('target_id', $topic->id))
+                        ->orWhere(fn($q) => $q->where('target_type', 'reply')->whereIn('target_id', $replyIds))
+                        ->delete();
+                    \App\Models\Forum\ForumReply::where('topic_id', $topic->id)->delete();
+                    \App\Models\Forum\ForumUserPin::where('topic_id', $topic->id)->delete();
+                    \App\Models\Forum\ForumTopicView::where('topic_id', $topic->id)->delete();
+                    $topic->delete();
+                });
+            } elseif ($validated['reportable_type'] === 'forum_reply' && isset($reply)) {
+                DB::transaction(function () use ($reply) {
+                    \App\Models\Forum\ForumVote::where('target_type', 'reply')->where('target_id', $reply->id)->delete();
+                    \App\Models\Forum\ForumReply::where('parent_id', $reply->id)->delete();
+                    $reply->delete();
+                });
             }
 
             return response()->json([

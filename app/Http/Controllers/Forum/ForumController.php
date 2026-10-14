@@ -190,19 +190,47 @@ class ForumController extends Controller
 
     public function store(StoreTopicRequest $request): JsonResponse
     {
+        $user = $request->user();
+        if ($user && $user->banned_until && $user->banned_until->isFuture()) {
+            return response()->json(['message' => 'Vous êtes temporairement interdit de publier. Réessayez plus tard.'], 403);
+        }
+
+        $data = $request->validated();
+
+        $modService = new \App\Services\ModerationService();
+        $isToxic = false;
+
+        $contentToCheck = trim(($data['title'] ?? '') . "\n" . ($data['content'] ?? ''));
+        if ($contentToCheck !== '' && $modService->isFlagged($contentToCheck)) {
+            $isToxic = true;
+        }
+
         $topic = ForumTopic::create([
-            ...$request->validated(),
-            'user_id' => $request->user()->id,
+            ...$data,
+            'user_id' => $user->id,
+            'is_hidden' => $isToxic,
         ]);
+
+        if ($isToxic) {
+            \App\Models\Report\Report::create([
+                'reporter_id' => null, // System AI
+                'reportable_type' => 'forum_topic',
+                'reportable_id' => $topic->id,
+                'reason' => 'Auto-flagged by AI Moderation',
+                'details' => implode(', ', $modService->getFlaggedCategories($contentToCheck)),
+                'status' => 'pending',
+            ]);
+            return response()->json(['message' => 'Topic soumis à validation en raison de notre politique de contenu.'], 201);
+        }
 
         return response()->json($topic, 201);
     }
 
     public function destroy(Request $request, int $id): JsonResponse
     {
-        $topic = ForumTopic::findOrFail($id);
+        $topic = ForumTopic::withoutGlobalScope(\App\Models\Scopes\HideToxicContentScope::class)->findOrFail($id);
 
-        if ($topic->user_id !== $request->user()->id) {
+        if ($topic->user_id !== $request->user()->id && !in_array($request->user()->role, ['admin', 'moderator'])) {
             return response()->json(['message' => 'Forbidden'], 403);
         }
 
@@ -214,6 +242,8 @@ class ForumController extends Controller
                 ->delete();
 
             ForumReply::where('topic_id', $topic->id)->delete();
+            ForumUserPin::where('topic_id', $topic->id)->delete();
+            ForumTopicView::where('topic_id', $topic->id)->delete();
 
             $topic->delete();
         });
@@ -223,17 +253,44 @@ class ForumController extends Controller
 
     public function reply(ReplyTopicRequest $request, int $id): JsonResponse
     {
+        $user = $request->user();
+        if ($user && $user->banned_until && $user->banned_until->isFuture()) {
+            return response()->json(['message' => 'Vous êtes temporairement interdit de publier. Réessayez plus tard.'], 403);
+        }
+
         $topic = ForumTopic::findOrFail($id);
 
         if ($topic->is_locked || $topic->is_archived) {
             return response()->json(['message' => 'Topic is locked'], 403);
         }
 
+        $data = $request->validated();
+
+        $modService = new \App\Services\ModerationService();
+        $isToxic = false;
+
+        if (isset($data['content']) && $modService->isFlagged($data['content'])) {
+            $isToxic = true;
+        }
+
         $reply = ForumReply::create([
-            ...$request->validated(),
+            ...$data,
             'topic_id' => $topic->id,
-            'user_id'  => $request->user()->id,
+            'user_id'  => $user->id,
+            'is_hidden' => $isToxic,
         ]);
+
+        if ($isToxic) {
+            \App\Models\Report\Report::create([
+                'reporter_id' => null, // System AI
+                'reportable_type' => 'forum_reply',
+                'reportable_id' => $reply->id,
+                'reason' => 'Auto-flagged by AI Moderation',
+                'details' => implode(', ', $modService->getFlaggedCategories($data['content'])),
+                'status' => 'pending',
+            ]);
+            return response()->json(['message' => 'Réponse soumise à validation en raison de notre politique de contenu.'], 201);
+        }
 
         return response()->json($reply, 201);
     }

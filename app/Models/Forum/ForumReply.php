@@ -12,15 +12,22 @@ class ForumReply extends Model
 
     protected $table = 'Forum_Replies';
     
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
+    }
+    
     protected $fillable = [
         'topic_id',
         'user_id',
         'parent_id',
         'content',
+        'is_hidden',
         'votes_count',
     ];
 
     protected $casts = [
+        'is_hidden'   => 'boolean',
         'votes_count' => 'integer',
         'created_at'  => 'datetime',
         'updated_at'  => 'datetime',
