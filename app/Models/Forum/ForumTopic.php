@@ -13,6 +13,11 @@ class ForumTopic extends Model
 
     protected $table = 'Forum_Topics';
 
+    protected static function booted(): void
+    {
+        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
+    }
+
     protected $fillable = [
         'user_id',
         'category',
@@ -23,6 +28,7 @@ class ForumTopic extends Model
         'is_pinned',
         'is_locked',
         'is_archived',
+        'is_hidden',
         'views_count',
         'votes_count',
     ];
@@ -31,6 +37,7 @@ class ForumTopic extends Model
         'is_pinned'    => 'boolean',
         'is_locked'    => 'boolean',
         'is_archived'  => 'boolean',
+        'is_hidden'    => 'boolean',
         'views_count'  => 'integer',
         'votes_count'  => 'integer',
         'created_at'   => 'datetime',
