@@ -83,4 +83,32 @@ class AdminUserController extends Controller
 
         return response()->json(['message' => 'User restored']);
     }
+
+    public function forceDestroy(Request $request, int $id, \App\Services\UserCleanupService $cleanupService): JsonResponse
+    {
+        $targetUser = User::findOrFail($id);
+        $currentUser = auth('api')->user();
+
+        if ($currentUser && $currentUser->id === $targetUser->id) {
+            return response()->json(['message' => 'Vous ne pouvez pas supprimer votre propre compte admin.'], 400);
+        }
+
+        $stats = $cleanupService->purgeUsers([$targetUser->id]);
+
+        return response()->json([
+            'message' => 'Utilisateur et l\'ensemble de ses contenus ont été définitivement supprimés.',
+            'stats' => $stats
+        ]);
+    }
+
+    public function cleanupBots(Request $request, \App\Services\UserCleanupService $cleanupService): JsonResponse
+    {
+        $pattern = $request->input('pattern', '%@example.%');
+        $stats = $cleanupService->purgeBotUsers($pattern);
+
+        return response()->json([
+            'message' => 'Nettoyage des bots terminé avec succès.',
+            'stats' => $stats
+        ]);
+    }
 }
