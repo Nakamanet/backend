@@ -12,6 +12,11 @@ use Illuminate\Support\Facades\Hash;
 
 class UserController extends Controller
 {
+    public function count(): JsonResponse
+    {
+        return response()->json(['count' => User::count()]);
+    }
+
     public function profile(Request $request, int $id): JsonResponse
     {
         $target = User::findOrFail($id);

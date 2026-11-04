@@ -7,6 +7,7 @@ use App\Http\Controllers\Friendship\FriendshipController;
 use App\Http\Controllers\Library\LibraryController;
 
 Route::prefix('users')->group(function () {
+    Route::get('/count', [UserController::class, 'count']);
     Route::get('/{id}/profile', [UserController::class, 'profile']);
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {
