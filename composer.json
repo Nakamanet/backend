@@ -13,7 +13,7 @@
         "dedoc/scramble": "^0.13.16",
         "laravel/framework": "^12.0",
         "laravel/sanctum": "^4.3",
-        "laravel/tinker": "^2.10.1",
+        "laravel/tinker": "^3.0.2",
         "league/flysystem-aws-s3-v3": "^3.34",
         "php-open-source-saver/jwt-auth": "^2.9",
         "resend/resend-php": "^1.5"
