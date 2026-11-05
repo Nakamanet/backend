@@ -10,57 +10,11 @@ use App\Http\Controllers\Controller;
 
 use App\Http\Requests\Auth\RegisterRequest;
 use App\Http\Requests\Auth\LoginRequest;
-use App\Http\Requests\Auth\SendRegistrationCodeRequest;
-use App\Mail\RegistrationCodeMail;
-use App\Services\Auth\RegistrationCodeService;
-use Illuminate\Support\Facades\Mail;
 
 class AuthController extends Controller
 {
-    /**
-     * Signup step 1: email a one-time code to prove the address is real.
-     */
-    public function sendRegistrationCode(SendRegistrationCodeRequest $request, RegistrationCodeService $codes)
+    public function register(RegisterRequest $request)
     {
-        $email = $request->email;
-        $code = $codes->issue($email);
-
-        if ($code === null) {
-            return response()->json([
-                'message'     => 'A code was just sent. Please wait before asking for a new one.',
-                'retry_after' => RegistrationCodeService::RESEND_COOLDOWN_SECONDS,
-            ], 429);
-        }
-
-        try {
-            Mail::to($email)->send(new RegistrationCodeMail($code));
-        } catch (\Throwable $e) {
-            report($e);
-            $codes->forget($email);
-
-            return response()->json([
-                'message' => 'Unable to send the verification email right now. Please try again.',
-            ], 503);
-        }
-
-        return response()->json([
-            'message'     => 'Verification code sent.',
-            'expires_in'  => RegistrationCodeService::TTL_MINUTES * 60,
-            'retry_after' => RegistrationCodeService::RESEND_COOLDOWN_SECONDS,
-        ], 202);
-    }
-
-    /**
-     * Signup step 2: create the account once the emailed code checks out.
-     */
-    public function register(RegisterRequest $request, RegistrationCodeService $codes)
-    {
-        if (! $codes->verify($request->email, $request->code)) {
-            throw ValidationException::withMessages([
-                'code' => ['Invalid or expired verification code.'],
-            ]);
-        }
-
         $user = User::create([
             'username'      => $request->username,
             'handle'        => $request->username, // handle = username at signup, frozen from here on
@@ -70,10 +24,6 @@ class AuthController extends Controller
             'localisation'  => $request->localisation,
             'role'          => 'user',
         ]);
-
-        // The code proved the address, so the account starts verified.
-        $user->markEmailAsVerified();
-        $codes->forget($request->email);
 
         $token = auth('api')->login($user);
 
