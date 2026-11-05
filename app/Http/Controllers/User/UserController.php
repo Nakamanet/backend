@@ -52,6 +52,10 @@ class UserController extends Controller
             'topics_count'       => $topicsCount,
             'friendship_status'  => $friendshipStatus,
             'friendship_id'      => $friendshipId,
+            'is_deleted'         => (bool) $target->is_deleted,
+            'banned_until'       => $target->banned_until ? $target->banned_until->toIso8601String() : null,
+            'is_admin'           => (bool) $target->is_admin,
+            'is_moderator'       => (bool) $target->is_moderator,
         ];
 
         // A blocked relationship restricts the profile exactly like a private one:
