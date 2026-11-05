@@ -17,6 +17,51 @@ class UserController extends Controller
         return response()->json(['count' => User::count()]);
     }
 
+    public function statuses(Request $request): JsonResponse
+    {
+        $rawIds = (string) $request->input('ids', '');
+        $rawUsernames = (string) $request->input('usernames', '');
+
+        $ids = array_filter(array_map('trim', explode(',', $rawIds)));
+        $usernames = array_filter(array_map('trim', explode(',', $rawUsernames)));
+
+        if (empty($ids) && empty($usernames)) {
+            return response()->json([]);
+        }
+
+        $query = User::query();
+        if (!empty($ids) && !empty($usernames)) {
+            $query->where(function ($q) use ($ids, $usernames) {
+                $q->whereIn('id', $ids)->orWhereIn('username', $usernames);
+            });
+        } elseif (!empty($ids)) {
+            $query->whereIn('id', $ids);
+        } else {
+            $query->whereIn('username', $usernames);
+        }
+
+        $users = $query->get(['id', 'username', 'is_deleted', 'banned_until', 'is_admin', 'is_moderator', 'role']);
+
+        $statuses = [];
+        $now = now();
+        foreach ($users as $u) {
+            $isBanned = (bool) ($u->is_deleted || ($u->banned_until && $u->banned_until > $now));
+            $isAdmin = (bool) ($u->is_admin || $u->role === 'admin');
+
+            $data = [
+                'id' => $u->id,
+                'username' => $u->username,
+                'is_banned' => $isBanned,
+                'is_admin' => $isAdmin,
+                'role' => $u->role,
+            ];
+            $statuses[(string) $u->id] = $data;
+            $statuses[$u->username] = $data;
+        }
+
+        return response()->json($statuses);
+    }
+
     public function profile(Request $request, int $id): JsonResponse
     {
         $target = User::findOrFail($id);
