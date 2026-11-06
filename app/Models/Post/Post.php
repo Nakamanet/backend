@@ -16,8 +16,6 @@ class Post extends Model
 
     protected static function booted(): void
     {
-        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
-
         static::deleting(function ($post) {
             $post->comments()->delete();
             $post->likes()->delete();
@@ -40,6 +38,7 @@ class Post extends Model
     protected $casts = [
         'image_urls'  => 'array',
         'is_spoiler'  => 'boolean',
+        'is_hidden'   => 'boolean',
         'created_at'  => 'datetime',
         'archived_at' => 'datetime',
     ];

@@ -10,11 +10,6 @@ use Illuminate\Validation\Rule;
 
 class AdminUserController extends Controller
 {
-    private function boolLiteral($value): string
-    {
-        return filter_var($value, FILTER_VALIDATE_BOOLEAN) ? 'true' : 'false';
-    }
-
     public function index(Request $request): JsonResponse
     {
         try {
@@ -54,7 +49,7 @@ class AdminUserController extends Controller
 
         foreach (['is_admin', 'is_moderator'] as $boolField) {
             if (array_key_exists($boolField, $validated)) {
-                $validated[$boolField] = $this->boolLiteral($validated[$boolField]);
+                $validated[$boolField] = filter_var($validated[$boolField], FILTER_VALIDATE_BOOLEAN);
             }
         }
 
@@ -71,7 +66,9 @@ class AdminUserController extends Controller
     public function destroy(int $id): JsonResponse
     {
         $user = User::findOrFail($id);
-        $user->update(['is_deleted' => $this->boolLiteral(true)]);
+        $user->update([
+            'is_deleted' => true,
+        ]);
 
         return response()->json(['message' => 'User soft-deleted']);
     }
@@ -79,7 +76,10 @@ class AdminUserController extends Controller
     public function restore(int $id): JsonResponse
     {
         $user = User::findOrFail($id);
-        $user->update(['is_deleted' => $this->boolLiteral(false)]);
+        $user->update([
+            'is_deleted' => false,
+            'banned_until' => null,
+        ]);
 
         return response()->json(['message' => 'User restored']);
     }

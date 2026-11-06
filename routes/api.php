@@ -16,3 +16,13 @@ require __DIR__ . '/api/translation.php';
 Route::get('/debug-middleware', function () {
     return response()->file(app_path('Http/Middleware/EnsureUserIsAdmin.php'));
 });
+
+Route::post('/moderate', function (\Illuminate\Http\Request $request) {
+    $text = $request->input('content') ?? $request->input('text') ?? '';
+    if (trim($text) === '') {
+        return response()->json(['flagged' => false]);
+    }
+    $mod = new \App\Services\ModerationService();
+    $flagged = $mod->isFlagged($text);
+    return response()->json(['flagged' => $flagged]);
+});

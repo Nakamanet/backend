@@ -8,6 +8,7 @@ use App\Http\Controllers\Library\LibraryController;
 
 Route::prefix('users')->group(function () {
     Route::get('/count', [UserController::class, 'count']);
+    Route::get('/statuses', [UserController::class, 'statuses']);
     Route::get('/{id}/profile', [UserController::class, 'profile']);
 
     Route::middleware(['auth:api', 'user.active'])->group(function () {

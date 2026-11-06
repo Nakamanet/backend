@@ -220,8 +220,9 @@ class ForumController extends Controller
                 'details' => implode(', ', $modService->getFlaggedCategories($contentToCheck)),
                 'status' => 'pending',
             ]);
-            return response()->json(['message' => 'Topic soumis à validation en raison de notre politique de contenu.'], 201);
         }
+
+        $topic->load('user');
 
         return response()->json($topic, 201);
     }
@@ -289,8 +290,9 @@ class ForumController extends Controller
                 'details' => implode(', ', $modService->getFlaggedCategories($data['content'])),
                 'status' => 'pending',
             ]);
-            return response()->json(['message' => 'Réponse soumise à validation en raison de notre politique de contenu.'], 201);
         }
+
+        $reply->load('user');
 
         return response()->json($reply, 201);
     }

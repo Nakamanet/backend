@@ -174,10 +174,11 @@ class PostController extends Controller
                 'details' => implode(', ', $modService->getFlaggedCategories($data['content'])),
                 'status' => 'pending',
             ]);
-            return response()->json(['message' => 'Post submitted for manual review due to content policies.'], 201);
         }
 
         $this->notifyMentions($post->content, $post->id, $request->user()->id);
+
+        $post->load('user');
 
         return response()->json($post, 201);
     }

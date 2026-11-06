@@ -12,11 +12,6 @@ class ForumReply extends Model
 
     protected $table = 'Forum_Replies';
     
-    protected static function booted(): void
-    {
-        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
-    }
-    
     protected $fillable = [
         'topic_id',
         'user_id',

@@ -13,11 +13,6 @@ class ForumTopic extends Model
 
     protected $table = 'Forum_Topics';
 
-    protected static function booted(): void
-    {
-        static::addGlobalScope(new \App\Models\Scopes\HideToxicContentScope);
-    }
-
     protected $fillable = [
         'user_id',
         'category',
